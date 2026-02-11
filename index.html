@@ -41,19 +41,18 @@
         
         .mobile-row { display: flex; border-bottom: 1px solid #000; min-height: 65px; scroll-margin-top: 195px; } 
         .date-cell { width: 25%; padding: 10px; border-right: 1px solid #000; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: #fafafa; cursor: pointer; }
-        /* 수정된 content-cell-wrapper 스타일 */
+        
         .content-cell-wrapper { 
             width: 75%; 
             display: flex; 
             flex-wrap: wrap; 
-            justify-content: center; /* 가로 방향 가운데 정렬 */
-            align-items: center;     /* 세로 방향 가운데 정렬 */
-            align-content: center;   /* 여러 줄 발생 시 전체 내용 가운데 정렬 */
+            justify-content: center; 
+            align-items: center; 
+            align-content: center; 
             padding: 10px; 
             cursor: pointer; 
         }
                 
-        /* 배지 여백 조정 (가운데 정렬 시 균형을 위해) */
         .type-badge {
             display: inline-block;
             padding: 3px 8px;
@@ -61,9 +60,9 @@
             font-size: 0.8rem;
             font-weight: bold;
             color: white;
-            margin: 3px; /* 상하좌우 일정한 여백 */
+            margin: 3px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            white-space: nowrap; /* 글자 줄바꿈 방지 */
+            white-space: nowrap;
         }
         .bg-M { background-color: #4caf50; }
         .bg-A { background-color: #2196f3; }
@@ -75,6 +74,9 @@
         .list-time-badge { font-size: 0.8rem; color: #666; background: #e9ecef; padding: 2px 6px; border-radius: 4px; margin-top: 4px; display: inline-block; }
         
         .today-highlight { background-color: #fff9db !important; }
+
+        /* 검색 결과 스타일 */
+        #search-results-list .list-group-item { cursor: pointer; border-left: 5px solid #4a90e2; }
 
         @media (max-width: 768px) {
             #calendar-container { display: none; }
@@ -108,7 +110,7 @@
                     <span onclick="changeMonth(1)">&gt;</span>
                     <button class="btn btn-sm btn-outline-secondary ms-2" onclick="goToday()">오늘</button>
                 </div>
-                <div style="font-size: 0.9rem; color: #666;">월간 리스트</div>
+                <button class="btn btn-sm btn-primary" onclick="openSearchModal()">🔍 일정 검색</button>
             </div>
             <div id="mobile-month-display" class="mobile-month-title"></div>
         </div>
@@ -120,6 +122,26 @@
 
     <div id="calendar-container">
         <div id="calendar"></div>
+    </div>
+
+    <div class="modal fade" id="searchModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">스케줄 검색</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group mb-3">
+                        <input type="text" id="search-input" class="form-control" placeholder="메모 또는 타입 입력 (예: M, 미팅...)" onkeyup="if(event.keyCode==13) executeSearch()">
+                        <button class="btn btn-primary" onclick="executeSearch()">검색</button>
+                    </div>
+                    <div id="search-results-list" class="list-group" style="max-height: 400px; overflow-y: auto;">
+                        <p class="text-center text-muted py-4">검색어를 입력해 주세요.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="modal fade" id="dailyListModal" tabindex="-1">
@@ -226,6 +248,70 @@
             refreshUI();
         }
 
+        /* ---------------- 검색 기능 관련 함수 ---------------- */
+        function openSearchModal() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('search-results-list').innerHTML = '<p class="text-center text-muted py-4">검색어를 입력해 주세요.</p>';
+            new bootstrap.Modal(document.getElementById('searchModal')).show();
+        }
+
+        function executeSearch() {
+            const keyword = document.getElementById('search-input').value.trim().toLowerCase();
+            if (!keyword) return;
+
+            const tx = db.transaction("schedules", "readonly");
+            tx.objectStore("schedules").getAll().onsuccess = (e) => {
+                const results = e.target.result.filter(ev => 
+                    ev.schedule_type.toLowerCase().includes(keyword) || 
+                    (ev.plan_note && ev.plan_note.toLowerCase().includes(keyword))
+                ).sort((a, b) => new Date(b.schedule_date) - new Date(a.schedule_date)); // 최신순 정렬
+
+                const container = document.getElementById('search-results-list');
+                container.innerHTML = '';
+
+                if (results.length > 0) {
+                    results.forEach(res => {
+                        const div = document.createElement('div');
+                        div.className = 'list-group-item list-group-item-action mb-2';
+                        div.innerHTML = `
+                            <div class="d-flex justify-content-between align-items-center">
+                                <strong>${res.schedule_date}</strong>
+                                <span class="badge bg-${res.schedule_type}">${res.schedule_type}</span>
+                            </div>
+                            <div class="mt-1 text-truncate" style="font-size: 0.9rem;">${res.plan_note || '(메모 없음)'}</div>
+                        `;
+                        div.onclick = () => {
+                            bootstrap.Modal.getInstance(document.getElementById('searchModal')).hide();
+                            goToDate(res.schedule_date);
+                        };
+                        container.appendChild(div);
+                    });
+                } else {
+                    container.innerHTML = '<p class="text-center text-danger py-4">검색 결과가 없습니다.</p>';
+                }
+            };
+        }
+
+        function goToDate(dateStr) {
+            const targetDate = new Date(dateStr);
+            currentMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+            
+            if (calendar) calendar.gotoDate(dateStr);
+            
+            refreshUI();
+            
+            // 리스트 렌더링 완료 후 스크롤을 위해 약간의 지연시간 부여
+            setTimeout(() => {
+                const element = document.getElementById(`mobile-date-${dateStr}`);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    element.classList.add('today-highlight');
+                    setTimeout(() => element.classList.remove('today-highlight'), 2000);
+                }
+            }, 300);
+        }
+        /* -------------------------------------------------- */
+
         function timeToMinutes(timeStr) {
             if (!timeStr || !timeStr.includes(':')) return -1;
             const [h, m] = timeStr.split(':').map(Number);
@@ -325,7 +411,6 @@
             calendar.render();
         }
 
-        // 모바일 리스트 렌더링 수정됨
         async function renderMobileList() {
             const container = document.getElementById('mobile-list-content');
             const title = document.getElementById('mobile-month-display');
@@ -349,7 +434,6 @@
                     const color = (w === 0) ? 'red' : (w === 6 ? 'blue' : 'black');
                     const isToday = (dStr === todayStr);
 
-                    // 일정 표시 HTML 생성
                     let contentHtml = '';
                     if (dayEvents.length > 0) {
                         dayEvents.forEach(ev => {
