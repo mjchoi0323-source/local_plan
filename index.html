@@ -75,7 +75,6 @@
         
         .today-highlight { background-color: #fff9db !important; }
 
-        /* 검색 결과 스타일 */
         #search-results-list .list-group-item { cursor: pointer; border-left: 5px solid #4a90e2; }
 
         @media (max-width: 768px) {
@@ -246,7 +245,6 @@
             if (savedNickname) {
                 document.getElementById('display-nickname').innerText = savedNickname;
             }
-            
             initTimeSelects();
             renderTypeSelect();
             initCalendar();
@@ -341,32 +339,26 @@
 
             store.getAll().onsuccess = (e) => {
                 const allData = e.target.result;
-                
-                // --- Day Off 관련 상호 배타적 로직 추가 ---
                 const sameDayEvents = allData.filter(ev => ev.schedule_date === targetDate && ev.id != id);
                 
+                // --- Day Off 배타적 삭제 로직 (상세 경고 포함) ---
                 if (type === 'OFF') {
-                    // 1. 현재 추가하려는게 Day Off인 경우: 같은 날의 다른 모든 일정을 삭제
                     if (sameDayEvents.length > 0) {
-                        if (confirm("Day Off를 설정하면 해당 날짜의 다른 모든 일정이 삭제됩니다. 계속하시겠습니까?")) {
+                        let deleteList = sameDayEvents.map(ev => `• [${ev.schedule_type}] ${ev.plan_note || '메모없음'} (${getTimeText(ev)})`).join('\n');
+                        if (confirm(`⚠️ Day Off를 설정하면 다음 일정이 모두 삭제됩니다:\n\n${deleteList}\n\n계속하시겠습니까?`)) {
                             sameDayEvents.forEach(ev => store.delete(ev.id));
-                        } else {
-                            return; // 저장 취소
-                        }
+                        } else { return; }
                     }
                 } else {
-                    // 2. 현재 추가하려는게 일반 일정인 경우: 같은 날에 Day Off가 있다면 삭제
                     const existingOff = sameDayEvents.find(ev => ev.schedule_type === 'OFF');
                     if (existingOff) {
-                        if (confirm("이 날짜에 Day Off가 설정되어 있습니다. 일반 일정을 추가하면 Day Off가 삭제됩니다. 계속하시겠습니까?")) {
+                        if (confirm(`⚠️ 이 날짜에는 [Day Off]가 설정되어 있습니다.\n새 일정을 추가하면 [Day Off]가 삭제됩니다.\n\n계속하시겠습니까?`)) {
                             store.delete(existingOff.id);
-                        } else {
-                            return; // 저장 취소
-                        }
+                        } else { return; }
                     }
                 }
-                // ------------------------------------------
 
+                // 일반 시간 중복 체크
                 const overlaps = allData.filter(ev => {
                     if (ev.schedule_date !== targetDate || ev.id == id || ev.schedule_type === 'OFF' || type === 'OFF') return false;
                     let exStart = ev.start_time || (userTimeSettings[ev.schedule_type] ? userTimeSettings[ev.schedule_type].start : "");
@@ -377,14 +369,8 @@
                 });
 
                 if (overlaps.length > 0) {
-                    let infoMsg = overlaps.map(o => {
-                        const timeText = getTimeText(o);
-                        return `• [${o.schedule_type}] ${o.plan_note || '메모없음'} (${timeText})`;
-                    }).join('\n');
-                    const confirmMsg = `⚠️ 시간대가 겹치는 일정이 존재합니다!\n\n` +
-                                       `[겹치는 일정]\n${infoMsg}\n\n` +
-                                       `기존 일정을 삭제하고 현재 일정으로 덮어쓰시겠습니까?`;
-                    if (!confirm(confirmMsg)) return;
+                    let infoMsg = overlaps.map(o => `• [${o.schedule_type}] ${o.plan_note || '메모없음'} (${getTimeText(o)})`).join('\n');
+                    if (!confirm(`⚠️ 시간대가 겹치는 일정이 존재합니다!\n\n[겹치는 일정]\n${infoMsg}\n\n덮어쓰시겠습니까?`)) return;
                     overlaps.forEach(o => store.delete(o.id));
                 }
 
@@ -399,8 +385,7 @@
 
                 store.put(data);
                 tx.oncomplete = () => {
-                    const schedModal = bootstrap.Modal.getInstance(document.getElementById('scheduleModal'));
-                    if(schedModal) schedModal.hide();
+                    bootstrap.Modal.getInstance(document.getElementById('scheduleModal')).hide();
                     refreshUI();
                 };
             };
@@ -412,22 +397,20 @@
         }
 
         function initCalendar() {
-            const calendarEl = document.getElementById('calendar');
-            calendar = new FullCalendar.Calendar(calendarEl, {
+            calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
                 initialView: 'dayGridMonth',
                 locale: 'ko',
                 headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
                 events: function(info, successCallback) {
                     const tx = db.transaction("schedules", "readonly");
                     tx.objectStore("schedules").getAll().onsuccess = (e) => {
-                        const events = e.target.result.map(d => ({
+                        successCallback(e.target.result.map(d => ({
                             id: d.id,
                             title: `[${d.schedule_type}] ${d.plan_note}`,
                             start: d.schedule_date,
                             backgroundColor: getEventColor(d.schedule_type),
                             extendedProps: d
-                        }));
-                        successCallback(events);
+                        })));
                     };
                 },
                 dateClick: (info) => showDailyListModal(info.dateStr),
@@ -438,18 +421,15 @@
 
         async function renderMobileList() {
             const container = document.getElementById('mobile-list-content');
-            const title = document.getElementById('mobile-month-display');
             const year = currentMonth.getFullYear();
             const month = currentMonth.getMonth();
-            title.innerText = `${year}년 ${month + 1}월`;
+            document.getElementById('mobile-month-display').innerText = `${year}년 ${month + 1}월`;
             container.innerHTML = '';
 
-            const today = new Date();
-            const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-
+            const todayStr = new Date().toISOString().split('T')[0];
             const lastDay = new Date(year, month + 1, 0).getDate();
-            const tx = db.transaction("schedules", "readonly");
             
+            const tx = db.transaction("schedules", "readonly");
             tx.objectStore("schedules").getAll().onsuccess = (e) => {
                 const data = e.target.result;
                 for (let i = 1; i <= lastDay; i++) {
@@ -457,28 +437,20 @@
                     const dayEvents = data.filter(ev => ev.schedule_date === dStr);
                     const w = new Date(year, month, i).getDay();
                     const color = (w === 0) ? 'red' : (w === 6 ? 'blue' : 'black');
-                    const isToday = (dStr === todayStr);
 
-                    let contentHtml = '';
-                    if (dayEvents.length > 0) {
-                        dayEvents.forEach(ev => {
-                            contentHtml += `<span class="type-badge bg-${ev.schedule_type}">${ev.schedule_type}</span>`;
-                        });
-                    } else {
-                        contentHtml = `<div class="empty-cell">일정 없음</div>`;
-                    }
+                    let contentHtml = dayEvents.length > 0 
+                        ? dayEvents.map(ev => `<span class="type-badge bg-${ev.schedule_type}">${ev.schedule_type}</span>`).join('')
+                        : `<div class="empty-cell">일정 없음</div>`;
 
                     const row = document.createElement('div');
-                    row.className = `mobile-row ${isToday ? 'today-highlight' : ''}`;
+                    row.className = `mobile-row ${dStr === todayStr ? 'today-highlight' : ''}`;
                     row.id = `mobile-date-${dStr}`; 
                     row.innerHTML = `
                         <div class="date-cell" onclick="showDailyListModal('${dStr}')">
                             <span style="color:${color}; font-weight:bold; font-size:1.2rem;">${i}</span>
                             <span style="font-size:0.8rem; color:#666;">${['일','월','화','수','목','금','토'][w]}</span>
                         </div>
-                        <div class="content-cell-wrapper" onclick="showDailyListModal('${dStr}')">
-                            ${contentHtml}
-                        </div>
+                        <div class="content-cell-wrapper" onclick="showDailyListModal('${dStr}')">${contentHtml}</div>
                     `;
                     container.appendChild(row);
                 }
@@ -497,8 +469,7 @@
                     dayEvents.forEach(ev => {
                         const btn = document.createElement('button');
                         btn.className = 'list-group-item list-group-item-action py-3';
-                        btn.innerHTML = `<strong>[${ev.schedule_type}] ${ev.plan_note}</strong><br>
-                                         <small class="list-time-badge">${getTimeText(ev)}</small>`;
+                        btn.innerHTML = `<strong>[${ev.schedule_type}] ${ev.plan_note}</strong><br><small class="list-time-badge">${getTimeText(ev)}</small>`;
                         btn.onclick = () => showDetail(ev);
                         listContent.appendChild(btn);
                     });
@@ -506,8 +477,7 @@
                     listContent.innerHTML = '<div class="p-4 text-center text-muted">일정이 없습니다.</div>';
                 }
                 document.getElementById('list-add-btn').onclick = () => {
-                    const currentModal = bootstrap.Modal.getInstance(document.getElementById('dailyListModal'));
-                    if(currentModal) currentModal.hide();
+                    bootstrap.Modal.getInstance(document.getElementById('dailyListModal')).hide();
                     openAddModal(dateStr);
                 };
                 new bootstrap.Modal(document.getElementById('dailyListModal')).show();
@@ -591,23 +561,14 @@
         
         function goToday() {
             const today = new Date();
-            const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+            const todayStr = today.toISOString().split('T')[0];
             if (calendar) calendar.today();
-            const isDifferentMonth = (currentMonth.getFullYear() !== today.getFullYear() || currentMonth.getMonth() !== today.getMonth());
-            if (isDifferentMonth) {
-                currentMonth = new Date();
-                refreshUI();
-                setTimeout(() => scrollToToday(todayStr), 100);
-            } else {
-                scrollToToday(todayStr);
-            }
-        }
-
-        function scrollToToday(todayStr) {
-            const element = document.getElementById(`mobile-date-${todayStr}`);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
+            currentMonth = new Date();
+            refreshUI();
+            setTimeout(() => {
+                const element = document.getElementById(`mobile-date-${todayStr}`);
+                if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
         }
 
         function initTimeSelects() {
@@ -619,15 +580,10 @@
 
         function renderTypeSelect() {
             const s = document.getElementById('type-select');
-            const types = [
-                {v:'M', t:'M (오전)'}, {v:'A', t:'A (통상)'}, {v:'K', t:'K (오후)'}, 
-                {v:'OFF', t:'Day Off (휴무)'}, {v:'ETC', t:'기타 (직접입력)'}
-            ];
+            const types = [{v:'M', t:'M (오전)'}, {v:'A', t:'A (통상)'}, {v:'K', t:'K (오후)'}, {v:'OFF', t:'Day Off (휴무)'}, {v:'ETC', t:'기타 (직접입력)'}];
             types.forEach(t => {
                 const opt = new Option(t.t, t.v);
-                if(userTimeSettings[t.v] && userTimeSettings[t.v].start) {
-                    opt.text = `${t.v} | ${userTimeSettings[t.v].start}-${userTimeSettings[t.v].end}`;
-                }
+                if(userTimeSettings[t.v] && userTimeSettings[t.v].start) opt.text = `${t.v} | ${userTimeSettings[t.v].start}-${userTimeSettings[t.v].end}`;
                 s.add(opt);
             });
         }
@@ -635,8 +591,7 @@
         function exportData() {
             const tx = db.transaction("schedules", "readonly");
             tx.objectStore("schedules").getAll().onsuccess = (e) => {
-                const data = JSON.stringify(e.target.result);
-                const blob = new Blob([data], {type: "application/json"});
+                const blob = new Blob([JSON.stringify(e.target.result)], {type: "application/json"});
                 const a = document.createElement("a");
                 a.href = URL.createObjectURL(blob);
                 a.download = `backup_${new Date().toISOString().slice(0,10)}.json`;
