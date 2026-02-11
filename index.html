@@ -39,14 +39,41 @@
         .nav-buttons span { cursor: pointer; padding: 5px 10px; font-size: 1.3rem; }
         .mobile-month-title { text-align: center; border-bottom: 1px solid #000; padding: 12px; font-size: 1.25rem; font-weight: bold; background: #fff; }
         
-        .mobile-row { display: flex; border-bottom: 1px solid #000; min-height: 65px; scroll-margin-top: 195px; } /* 스크롤 위치 보정 */
-        .date-cell { width: 35%; padding: 10px; border-right: 1px solid #000; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: #fafafa; cursor: pointer; }
-        .content-cell-wrapper { width: 65%; display: flex; flex-direction: column; justify-content: center; cursor: pointer; }
-        .event-item-mobile { padding: 10px 15px; color: var(--primary); font-weight: bold; font-size: 0.95rem; }
-        .empty-cell { padding: 15px; color: #bbb; text-align: center; font-style: italic; }
+        .mobile-row { display: flex; border-bottom: 1px solid #000; min-height: 65px; scroll-margin-top: 195px; } 
+        .date-cell { width: 25%; padding: 10px; border-right: 1px solid #000; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: #fafafa; cursor: pointer; }
+        /* 수정된 content-cell-wrapper 스타일 */
+        .content-cell-wrapper { 
+            width: 75%; 
+            display: flex; 
+            flex-wrap: wrap; 
+            justify-content: center; /* 가로 방향 가운데 정렬 */
+            align-items: center;     /* 세로 방향 가운데 정렬 */
+            align-content: center;   /* 여러 줄 발생 시 전체 내용 가운데 정렬 */
+            padding: 10px; 
+            cursor: pointer; 
+        }
+                
+        /* 배지 여백 조정 (가운데 정렬 시 균형을 위해) */
+        .type-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: white;
+            margin: 3px; /* 상하좌우 일정한 여백 */
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            white-space: nowrap; /* 글자 줄바꿈 방지 */
+        }
+        .bg-M { background-color: #4caf50; }
+        .bg-A { background-color: #2196f3; }
+        .bg-K { background-color: #ff9800; }
+        .bg-OFF { background-color: #f44336; }
+        .bg-ETC { background-color: #607d8b; }
+
+        .empty-cell { padding: 15px; color: #bbb; text-align: center; font-style: italic; width: 100%; }
         .list-time-badge { font-size: 0.8rem; color: #666; background: #e9ecef; padding: 2px 6px; border-radius: 4px; margin-top: 4px; display: inline-block; }
         
-        /* 오늘 날짜 강조 효과 */
         .today-highlight { background-color: #fff9db !important; }
 
         @media (max-width: 768px) {
@@ -298,6 +325,7 @@
             calendar.render();
         }
 
+        // 모바일 리스트 렌더링 수정됨
         async function renderMobileList() {
             const container = document.getElementById('mobile-list-content');
             const title = document.getElementById('mobile-month-display');
@@ -321,18 +349,26 @@
                     const color = (w === 0) ? 'red' : (w === 6 ? 'blue' : 'black');
                     const isToday = (dStr === todayStr);
 
+                    // 일정 표시 HTML 생성
+                    let contentHtml = '';
+                    if (dayEvents.length > 0) {
+                        dayEvents.forEach(ev => {
+                            contentHtml += `<span class="type-badge bg-${ev.schedule_type}">${ev.schedule_type}</span>`;
+                        });
+                    } else {
+                        contentHtml = `<div class="empty-cell">일정 없음</div>`;
+                    }
+
                     const row = document.createElement('div');
                     row.className = `mobile-row ${isToday ? 'today-highlight' : ''}`;
-                    row.id = `mobile-date-${dStr}`; // 스크롤 이동을 위한 ID 부여
+                    row.id = `mobile-date-${dStr}`; 
                     row.innerHTML = `
                         <div class="date-cell" onclick="showDailyListModal('${dStr}')">
                             <span style="color:${color}; font-weight:bold; font-size:1.2rem;">${i}</span>
                             <span style="font-size:0.8rem; color:#666;">${['일','월','화','수','목','금','토'][w]}</span>
                         </div>
                         <div class="content-cell-wrapper" onclick="showDailyListModal('${dStr}')">
-                            ${dayEvents.length > 0 ? 
-                                `<div class="event-item-mobile">일정이 있습니다(${dayEvents.length})</div>` : 
-                                `<div class="empty-cell">일정 없음</div>`}
+                            ${contentHtml}
                         </div>
                     `;
                     container.appendChild(row);
@@ -361,7 +397,8 @@
                     listContent.innerHTML = '<div class="p-4 text-center text-muted">일정이 없습니다.</div>';
                 }
                 document.getElementById('list-add-btn').onclick = () => {
-                    bootstrap.Modal.getInstance(document.getElementById('dailyListModal')).hide();
+                    const currentModal = bootstrap.Modal.getInstance(document.getElementById('dailyListModal'));
+                    if(currentModal) currentModal.hide();
                     openAddModal(dateStr);
                 };
                 new bootstrap.Modal(document.getElementById('dailyListModal')).show();
@@ -443,21 +480,14 @@
 
         function changeMonth(val) { currentMonth.setMonth(currentMonth.getMonth() + val); refreshUI(); }
         
-        // 오늘 버튼 기능 수정
         function goToday() {
             const today = new Date();
             const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-            
-            // 1. PC 캘린더 이동
             if (calendar) calendar.today();
-
-            // 2. 모바일 리스트 처리
             const isDifferentMonth = (currentMonth.getFullYear() !== today.getFullYear() || currentMonth.getMonth() !== today.getMonth());
-            
             if (isDifferentMonth) {
                 currentMonth = new Date();
                 refreshUI();
-                // 데이터 렌더링 후 스크롤을 위해 약간의 지연시간 필요
                 setTimeout(() => scrollToToday(todayStr), 100);
             } else {
                 scrollToToday(todayStr);
