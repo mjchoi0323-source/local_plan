@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>업무 스케줄러 Pro (Time Conflict Check)</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4a90e2">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <style>
+        :root { --primary: #4a90e2; }
+        body { font-family: 'Pretendard', sans-serif; background-color: #f0f2f5; margin: 0; padding: 10px; }
+        .user-header-table { width: 100%; max-width: 1000px; margin: 0 auto; border-collapse: collapse; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .user-header-table td { border: 1px solid #000; padding: 12px; font-size: 14px; }
+        #calendar-container { max-width: 1000px; margin: 20px auto; background: white; padding: 15px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+        
+        /* 모바일 뷰 스타일 */
+        .mobile-list-container { display: none; width: 100%; max-width: 1000px; margin: 0 auto; background: #fff; border: 1px solid #000; }
+        .mobile-nav { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding: 10px 15px; font-weight: bold; background: #fdfdfd; align-items: center; }
+        .nav-buttons span { cursor: pointer; padding: 5px 10px; font-size: 1.3rem; }
+        .mobile-month-title { text-align: center; border-bottom: 1px solid #000; padding: 12px; font-size: 1.25rem; font-weight: bold; }
+        .mobile-row { display: flex; border-bottom: 1px solid #000; min-height: 65px; }
+        .date-cell { width: 35%; padding: 10px; border-right: 1px solid #000; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: #fafafa; cursor: pointer; }
+        .content-cell-wrapper { width: 65%; display: flex; flex-direction: column; justify-content: center; cursor: pointer; }
+        .event-item-mobile { padding: 10px 15px; color: var(--primary); font-weight: bold; font-size: 0.95rem; }
+        .empty-cell { padding: 15px; color: #bbb; text-align: center; font-style: italic; }
+        .list-time-badge { font-size: 0.8rem; color: #666; background: #e9ecef; padding: 2px 6px; border-radius: 4px; margin-top: 4px; display: inline-block; }
+        
+        @media (max-width: 768px) {
+            #calendar-container { display: none; }
+            .mobile-list-container { display: block; }
+        }
+    </style>
+</head>
+<body>
+
+    <table class="user-header-table">
+        <tr>
+            <td style="width:60%;"><strong>사용자</strong> 님 (로컬 모드)</td>
+            <td style="width:40%; text-align:center;">
+                <a href="#" onclick="exportData()" style="text-decoration:none; color:blue;">데이터백업</a> | 
+                <a href="signup.html" style="text-decoration:none; color:red;">로그아웃</a>
+            </td>
+        </tr>
+    </table>
+
+    <div class="mobile-list-container">
+        <div class="mobile-nav">
+            <div class="nav-buttons">
+                <span onclick="changeMonth(-1)">&lt;</span>
+                <span onclick="changeMonth(1)">&gt;</span>
+                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="goToday()">오늘</button>
+            </div>
+            <div style="font-size: 0.9rem; color: #666;">월간 리스트</div>
+        </div>
+        <div id="mobile-month-display" class="mobile-month-title"></div>
+        <div id="mobile-list-content"></div>
+    </div>
+
+    <div id="calendar-container">
+        <div id="calendar"></div>
+    </div>
+
+    <div class="modal fade" id="dailyListModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title fw-bold"><span id="list-modal-date"></span> 일정 목록</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div id="daily-list-content" class="list-group list-group-flush"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary w-100" id="list-add-btn">새 일정 추가</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="scheduleModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="modalTitle">스케줄 등록</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="edit-id">
+                    <div class="mb-3"><label class="form-label fw-bold">날짜</label><input type="date" id="date-input" class="form-control"></div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">타입 선택</label>
+                        <select id="type-select" class="form-select" onchange="toggleCustomTime()"></select>
+                    </div>
+                    <div id="custom-time-container" class="mb-3" style="display:none;">
+                        <label class="form-label fw-bold">시간 설정</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <select id="start-hour" class="form-select"></select>:<select id="start-min" class="form-select"></select>
+                            ~
+                            <select id="end-hour" class="form-select"></select>:<select id="end-min" class="form-select"></select>
+                        </div>
+                    </div>
+                    <div class="mb-3"><label class="form-label fw-bold">계획 및 메모</label><input type="text" id="plan-input" class="form-control" placeholder="계획을 입력하세요."></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmAndSave()">저장하기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="viewModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-secondary text-white">
+                    <h5 class="modal-title">상세 일정 정보</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3"><label class="fw-bold">날짜</label><div id="view-date" class="p-2 bg-light"></div></div>
+                    <div class="mb-3"><label class="fw-bold">근무 타입</label><div id="view-type" class="p-2 bg-light"></div></div>
+                    <div class="mb-3"><label class="fw-bold">근무 시간</label><div id="view-time" class="p-2 bg-light"></div></div>
+                    <div class="mb-3"><label class="fw-bold">메모 내용</label><div id="view-note" class="p-2 bg-light" style="min-height:80px;"></div></div>
+                </div>
+                <div class="modal-footer justify-content-between">
+                    <button type="button" class="btn btn-danger" onclick="deleteSchedule()">삭제</button>
+                    <div>
+                        <button type="button" class="btn btn-warning" onclick="openEditModal()">수정</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. 전역 변수 및 DB 초기화
+        let db;
+        let calendar;
+        let currentMonth = new Date();
+        const userTimeSettings = {
+            'M': {start: '07:00', end: '15:30'},
+            'A': {start: '10:00', end: '18:30'},
+            'K': {start: '13:00', end: '21:30'},
+            'OFF': {start: '', end: ''},
+            'ETC': {start: '', end: ''}
+        };
+
+        const dbReq = indexedDB.open("WorkSchedulerDB", 1);
+        dbReq.onupgradeneeded = (e) => {
+            db = e.target.result;
+            if (!db.objectStoreNames.contains("schedules")) {
+                db.createObjectStore("schedules", { keyPath: "id", autoIncrement: true });
+            }
+        };
+        dbReq.onsuccess = (e) => {
+            db = e.target.result;
+            initApp();
+        };
+
+        function initApp() {
+            initTimeSelects();
+            renderTypeSelect();
+            initCalendar();
+            refreshUI();
+        }
+
+        // 2. 유틸리티: 시간 문자열을 분(minute)으로 변환
+        function timeToMinutes(timeStr) {
+            if (!timeStr || !timeStr.includes(':')) return -1;
+            const [h, m] = timeStr.split(':').map(Number);
+            return h * 60 + m;
+        }
+
+        // 3. 핵심 기능: 일정 저장 및 시간 중복 체크
+        async function confirmAndSave() {
+            const id = document.getElementById('edit-id').value;
+            const targetDate = document.getElementById('date-input').value;
+            const type = document.getElementById('type-select').value;
+            const planNote = document.getElementById('plan-input').value;
+
+            // 현재 입력하는 일정의 시간대 파악
+            let newStart = "";
+            let newEnd = "";
+            if (type === 'ETC') {
+                newStart = document.getElementById('start-hour').value + ":" + document.getElementById('start-min').value;
+                newEnd = document.getElementById('end-hour').value + ":" + document.getElementById('end-min').value;
+            } else if (type !== 'OFF') {
+                newStart = userTimeSettings[type].start;
+                newEnd = userTimeSettings[type].end;
+            }
+
+            const newSMin = timeToMinutes(newStart);
+            const newEMin = timeToMinutes(newEnd);
+
+            const tx = db.transaction("schedules", "readwrite");
+            const store = tx.objectStore("schedules");
+
+            store.getAll().onsuccess = (e) => {
+                const allData = e.target.result;
+
+                // 중복 일정 필터링 (같은 날짜, 휴무 아님, 본인 아님, 시간 겹침)
+                const overlaps = allData.filter(ev => {
+                    if (ev.schedule_date !== targetDate || ev.id == id || ev.schedule_type === 'OFF') return false;
+                    
+                    let exStart = ev.start_time || (userTimeSettings[ev.schedule_type] ? userTimeSettings[ev.schedule_type].start : "");
+                    let exEnd = ev.end_time || (userTimeSettings[ev.schedule_type] ? userTimeSettings[ev.schedule_type].end : "");
+
+                    const exSMin = timeToMinutes(exStart);
+                    const exEMin = timeToMinutes(exEnd);
+
+                    return (newSMin < exEMin) && (newEMin > exSMin);
+                });
+
+                // 겹치는 일정이 있다면 정확한 정보 출력 후 확인
+                if (overlaps.length > 0) {
+                    let infoMsg = overlaps.map(o => {
+                        const timeText = getTimeText(o);
+                        return `• [${o.schedule_type}] ${o.plan_note || '메모없음'} (${timeText})`;
+                    }).join('\n');
+
+                    const confirmMsg = `⚠️ 시간대가 겹치는 일정이 존재합니다!\n\n` +
+                                       `[겹치는 일정]\n${infoMsg}\n\n` +
+                                       `기존 일정을 삭제하고 현재 일정으로 덮어쓰시겠습니까?`;
+
+                    if (!confirm(confirmMsg)) return;
+                    overlaps.forEach(o => store.delete(o.id));
+                }
+
+                // 저장 실행
+                const data = {
+                    schedule_date: targetDate,
+                    schedule_type: type,
+                    plan_note: planNote,
+                    start_time: type === 'ETC' ? newStart : "",
+                    end_time: type === 'ETC' ? newEnd : ""
+                };
+                if (id) data.id = Number(id);
+
+                store.put(data);
+                tx.oncomplete = () => {
+                    bootstrap.Modal.getInstance(document.getElementById('scheduleModal')).hide();
+                    refreshUI();
+                };
+            };
+        }
+
+        // 4. UI 갱신 및 캘린더 로직
+        function refreshUI() {
+            if (calendar) calendar.refetchEvents();
+            renderMobileList();
+        }
+
+        function initCalendar() {
+            const calendarEl = document.getElementById('calendar');
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'ko',
+                headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
+                events: function(info, successCallback) {
+                    const tx = db.transaction("schedules", "readonly");
+                    tx.objectStore("schedules").getAll().onsuccess = (e) => {
+                        const events = e.target.result.map(d => ({
+                            id: d.id,
+                            title: `[${d.schedule_type}] ${d.plan_note}`,
+                            start: d.schedule_date,
+                            backgroundColor: getEventColor(d.schedule_type),
+                            extendedProps: d
+                        }));
+                        successCallback(events);
+                    };
+                },
+                dateClick: (info) => showDailyListModal(info.dateStr),
+                eventClick: (info) => showDailyListModal(info.event.startStr)
+            });
+            calendar.render();
+        }
+
+        async function renderMobileList() {
+            const container = document.getElementById('mobile-list-content');
+            const title = document.getElementById('mobile-month-display');
+            const year = currentMonth.getFullYear();
+            const month = currentMonth.getMonth();
+            title.innerText = `${year}년 ${month + 1}월`;
+            container.innerHTML = '';
+
+            const lastDay = new Date(year, month + 1, 0).getDate();
+            const tx = db.transaction("schedules", "readonly");
+            
+            tx.objectStore("schedules").getAll().onsuccess = (e) => {
+                const data = e.target.result;
+                for (let i = 1; i <= lastDay; i++) {
+                    const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                    const dayEvents = data.filter(ev => ev.schedule_date === dStr);
+                    const w = new Date(year, month, i).getDay();
+                    const color = (w === 0) ? 'red' : (w === 6 ? 'blue' : 'black');
+
+                    const row = document.createElement('div');
+                    row.className = 'mobile-row';
+                    row.innerHTML = `
+                        <div class="date-cell" onclick="showDailyListModal('${dStr}')">
+                            <span style="color:${color}; font-weight:bold; font-size:1.2rem;">${i}</span>
+                            <span style="font-size:0.8rem; color:#666;">${['일','월','화','수','목','금','토'][w]}</span>
+                        </div>
+                        <div class="content-cell-wrapper" onclick="showDailyListModal('${dStr}')">
+                            ${dayEvents.length > 0 ? 
+                                `<div class="event-item-mobile">일정이 있습니다(${dayEvents.length})</div>` : 
+                                `<div class="empty-cell">일정 없음</div>`}
+                        </div>
+                    `;
+                    container.appendChild(row);
+                }
+            };
+        }
+
+        async function showDailyListModal(dateStr) {
+            document.getElementById('list-modal-date').innerText = dateStr;
+            const listContent = document.getElementById('daily-list-content');
+            listContent.innerHTML = '';
+
+            const tx = db.transaction("schedules", "readonly");
+            tx.objectStore("schedules").getAll().onsuccess = (e) => {
+                const dayEvents = e.target.result.filter(ev => ev.schedule_date === dateStr);
+                if (dayEvents.length > 0) {
+                    dayEvents.forEach(ev => {
+                        const btn = document.createElement('button');
+                        btn.className = 'list-group-item list-group-item-action py-3';
+                        btn.innerHTML = `<strong>[${ev.schedule_type}] ${ev.plan_note}</strong><br>
+                                         <small class="list-time-badge">${getTimeText(ev)}</small>`;
+                        btn.onclick = () => showDetail(ev);
+                        listContent.appendChild(btn);
+                    });
+                } else {
+                    listContent.innerHTML = '<div class="p-4 text-center text-muted">일정이 없습니다.</div>';
+                }
+                document.getElementById('list-add-btn').onclick = () => {
+                    bootstrap.Modal.getInstance(document.getElementById('dailyListModal')).hide();
+                    openAddModal(dateStr);
+                };
+                new bootstrap.Modal(document.getElementById('dailyListModal')).show();
+            };
+        }
+
+        // 5. 유틸리티 및 기타 모달 제어
+        function deleteSchedule() {
+            if (!confirm("정말 삭제하시겠습니까?")) return;
+            const id = Number(document.getElementById('edit-id').value);
+            const tx = db.transaction("schedules", "readwrite");
+            tx.objectStore("schedules").delete(id);
+            tx.oncomplete = () => {
+                bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide();
+                refreshUI();
+            };
+        }
+
+        function showDetail(ev) {
+            document.getElementById('edit-id').value = ev.id;
+            document.getElementById('view-date').innerText = ev.schedule_date;
+            document.getElementById('view-type').innerText = ev.schedule_type;
+            document.getElementById('view-time').innerText = getTimeText(ev);
+            document.getElementById('view-note').innerText = ev.plan_note || "(메모 없음)";
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('dailyListModal')).hide();
+            new bootstrap.Modal(document.getElementById('viewModal')).show();
+        }
+
+        function openEditModal() {
+            const currentId = Number(document.getElementById('edit-id').value);
+            const tx = db.transaction("schedules", "readonly");
+            tx.objectStore("schedules").get(currentId).onsuccess = (e) => {
+                const ev = e.target.result;
+                if(!ev) return;
+                document.getElementById('modalTitle').innerText = "스케줄 수정";
+                document.getElementById('edit-id').value = ev.id;
+                document.getElementById('date-input').value = ev.schedule_date;
+                document.getElementById('type-select').value = ev.schedule_type;
+                document.getElementById('plan-input').value = ev.plan_note;
+                if(ev.schedule_type === 'ETC' && ev.start_time) {
+                    const [sh, sm] = ev.start_time.split(':');
+                    const [eh, em] = ev.end_time.split(':');
+                    document.getElementById('start-hour').value = sh;
+                    document.getElementById('start-min').value = sm;
+                    document.getElementById('end-hour').value = eh;
+                    document.getElementById('end-min').value = em;
+                }
+                toggleCustomTime();
+                bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide();
+                new bootstrap.Modal(document.getElementById('scheduleModal')).show();
+            };
+        }
+
+        function openAddModal(date) {
+            document.getElementById('modalTitle').innerText = "새 스케줄 등록";
+            document.getElementById('edit-id').value = '';
+            document.getElementById('date-input').value = date;
+            document.getElementById('plan-input').value = '';
+            document.getElementById('type-select').value = 'M';
+            toggleCustomTime();
+            new bootstrap.Modal(document.getElementById('scheduleModal')).show();
+        }
+
+        function toggleCustomTime() {
+            document.getElementById('custom-time-container').style.display = 
+                (document.getElementById('type-select').value === 'ETC') ? 'block' : 'none';
+        }
+
+        function getTimeText(ev) {
+            if (ev.schedule_type === 'OFF') return "휴무";
+            if (ev.start_time) return `${ev.start_time} ~ ${ev.end_time}`;
+            const def = userTimeSettings[ev.schedule_type];
+            return def && def.start ? `${def.start} ~ ${def.end}` : "시간 정보 없음";
+        }
+
+        function getEventColor(type) {
+            return {'M':'#4caf50','K':'#ff9800','A':'#2196f3','OFF':'#f44336'}[type] || '#607d8b';
+        }
+
+        function changeMonth(val) { currentMonth.setMonth(currentMonth.getMonth() + val); refreshUI(); }
+        function goToday() { currentMonth = new Date(); refreshUI(); }
+
+        function initTimeSelects() {
+            const h = document.querySelectorAll('#start-hour, #end-hour');
+            const m = document.querySelectorAll('#start-min, #end-min');
+            h.forEach(s => { for(let i=0; i<24; i++) s.add(new Option(String(i).padStart(2,'0'), String(i).padStart(2,'0'))); });
+            m.forEach(s => { for(let i=0; i<60; i+=5) s.add(new Option(String(i).padStart(2,'0'), String(i).padStart(2,'0'))); });
+        }
+
+        function renderTypeSelect() {
+            const s = document.getElementById('type-select');
+            const types = [
+                {v:'M', t:'M (오전)'}, {v:'A', t:'A (통상)'}, {v:'K', t:'K (오후)'}, 
+                {v:'OFF', t:'Day Off (휴무)'}, {v:'ETC', t:'기타 (직접입력)'}
+            ];
+            types.forEach(t => {
+                const opt = new Option(t.t, t.v);
+                if(userTimeSettings[t.v] && userTimeSettings[t.v].start) {
+                    opt.text = `${t.v} | ${userTimeSettings[t.v].start}-${userTimeSettings[t.v].end}`;
+                }
+                s.add(opt);
+            });
+        }
+
+        function exportData() {
+            const tx = db.transaction("schedules", "readonly");
+            tx.objectStore("schedules").getAll().onsuccess = (e) => {
+                const data = JSON.stringify(e.target.result);
+                const blob = new Blob([data], {type: "application/json"});
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `backup_${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+            };
+        }
+    </script>
+</body>
+</html>
