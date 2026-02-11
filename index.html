@@ -341,7 +341,6 @@
                 const allData = e.target.result;
                 const sameDayEvents = allData.filter(ev => ev.schedule_date === targetDate && ev.id != id);
                 
-                // --- Day Off 배타적 삭제 로직 (상세 경고 포함) ---
                 if (type === 'OFF') {
                     if (sameDayEvents.length > 0) {
                         let deleteList = sameDayEvents.map(ev => `• [${ev.schedule_type}] ${ev.plan_note || '메모없음'} (${getTimeText(ev)})`).join('\n');
@@ -358,7 +357,6 @@
                     }
                 }
 
-                // 일반 시간 중복 체크
                 const overlaps = allData.filter(ev => {
                     if (ev.schedule_date !== targetDate || ev.id == id || ev.schedule_type === 'OFF' || type === 'OFF') return false;
                     let exStart = ev.start_time || (userTimeSettings[ev.schedule_type] ? userTimeSettings[ev.schedule_type].start : "");
@@ -386,14 +384,21 @@
                 store.put(data);
                 tx.oncomplete = () => {
                     bootstrap.Modal.getInstance(document.getElementById('scheduleModal')).hide();
-                    refreshUI();
+                    // 저장 후 스크롤을 유지한 채 UI 새로고침
+                    refreshUI(true); 
                 };
             };
         }
 
-        function refreshUI() {
+        // keepScroll 인자가 true이면 렌더링 후 스크롤을 복구함
+        function refreshUI(keepScroll = false) {
+            const scrollPos = window.scrollY;
             if (calendar) calendar.refetchEvents();
-            renderMobileList();
+            renderMobileList().then(() => {
+                if (keepScroll) {
+                    window.scrollTo(0, scrollPos);
+                }
+            });
         }
 
         function initCalendar() {
@@ -419,42 +424,45 @@
             calendar.render();
         }
 
-        async function renderMobileList() {
-            const container = document.getElementById('mobile-list-content');
-            const year = currentMonth.getFullYear();
-            const month = currentMonth.getMonth();
-            document.getElementById('mobile-month-display').innerText = `${year}년 ${month + 1}월`;
-            container.innerHTML = '';
+        function renderMobileList() {
+            return new Promise((resolve) => {
+                const container = document.getElementById('mobile-list-content');
+                const year = currentMonth.getFullYear();
+                const month = currentMonth.getMonth();
+                document.getElementById('mobile-month-display').innerText = `${year}년 ${month + 1}월`;
+                container.innerHTML = '';
 
-            const todayStr = new Date().toISOString().split('T')[0];
-            const lastDay = new Date(year, month + 1, 0).getDate();
-            
-            const tx = db.transaction("schedules", "readonly");
-            tx.objectStore("schedules").getAll().onsuccess = (e) => {
-                const data = e.target.result;
-                for (let i = 1; i <= lastDay; i++) {
-                    const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-                    const dayEvents = data.filter(ev => ev.schedule_date === dStr);
-                    const w = new Date(year, month, i).getDay();
-                    const color = (w === 0) ? 'red' : (w === 6 ? 'blue' : 'black');
+                const todayStr = new Date().toISOString().split('T')[0];
+                const lastDay = new Date(year, month + 1, 0).getDate();
+                
+                const tx = db.transaction("schedules", "readonly");
+                tx.objectStore("schedules").getAll().onsuccess = (e) => {
+                    const data = e.target.result;
+                    for (let i = 1; i <= lastDay; i++) {
+                        const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                        const dayEvents = data.filter(ev => ev.schedule_date === dStr);
+                        const w = new Date(year, month, i).getDay();
+                        const color = (w === 0) ? 'red' : (w === 6 ? 'blue' : 'black');
 
-                    let contentHtml = dayEvents.length > 0 
-                        ? dayEvents.map(ev => `<span class="type-badge bg-${ev.schedule_type}">${ev.schedule_type}</span>`).join('')
-                        : `<div class="empty-cell">일정 없음</div>`;
+                        let contentHtml = dayEvents.length > 0 
+                            ? dayEvents.map(ev => `<span class="type-badge bg-${ev.schedule_type}">${ev.schedule_type}</span>`).join('')
+                            : `<div class="empty-cell">일정 없음</div>`;
 
-                    const row = document.createElement('div');
-                    row.className = `mobile-row ${dStr === todayStr ? 'today-highlight' : ''}`;
-                    row.id = `mobile-date-${dStr}`; 
-                    row.innerHTML = `
-                        <div class="date-cell" onclick="showDailyListModal('${dStr}')">
-                            <span style="color:${color}; font-weight:bold; font-size:1.2rem;">${i}</span>
-                            <span style="font-size:0.8rem; color:#666;">${['일','월','화','수','목','금','토'][w]}</span>
-                        </div>
-                        <div class="content-cell-wrapper" onclick="showDailyListModal('${dStr}')">${contentHtml}</div>
-                    `;
-                    container.appendChild(row);
-                }
-            };
+                        const row = document.createElement('div');
+                        row.className = `mobile-row ${dStr === todayStr ? 'today-highlight' : ''}`;
+                        row.id = `mobile-date-${dStr}`; 
+                        row.innerHTML = `
+                            <div class="date-cell" onclick="showDailyListModal('${dStr}')">
+                                <span style="color:${color}; font-weight:bold; font-size:1.2rem;">${i}</span>
+                                <span style="font-size:0.8rem; color:#666;">${['일','월','화','수','목','금','토'][w]}</span>
+                            </div>
+                            <div class="content-cell-wrapper" onclick="showDailyListModal('${dStr}')">${contentHtml}</div>
+                        `;
+                        container.appendChild(row);
+                    }
+                    resolve();
+                };
+            });
         }
 
         async function showDailyListModal(dateStr) {
@@ -491,7 +499,7 @@
             tx.objectStore("schedules").delete(id);
             tx.oncomplete = () => {
                 bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide();
-                refreshUI();
+                refreshUI(true);
             };
         }
 
@@ -564,11 +572,12 @@
             const todayStr = today.toISOString().split('T')[0];
             if (calendar) calendar.today();
             currentMonth = new Date();
-            refreshUI();
-            setTimeout(() => {
-                const element = document.getElementById(`mobile-date-${todayStr}`);
-                if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 100);
+            renderMobileList().then(() => {
+                setTimeout(() => {
+                    const element = document.getElementById(`mobile-date-${todayStr}`);
+                    if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+            });
         }
 
         function initTimeSelects() {
