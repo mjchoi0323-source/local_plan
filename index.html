@@ -95,8 +95,9 @@
     <div class="sticky-header-wrapper">
         <table class="user-header-table">
             <tr>
-                <td style="width:60%;"><strong>사용자</strong> 님 (로컬 모드)</td>
+                <td style="width:60%;"><strong id="display-nickname">사용자</strong> 님</td>
                 <td style="width:40%; text-align:center;">
+                    <a href="setting.html" style="text-decoration:none; color:green; font-weight:bold;">⚙️설정</a> | 
                     <a href="#" onclick="exportData()" style="text-decoration:none; color:blue;">데이터백업</a> | 
                     <a href="signup.html" style="text-decoration:none; color:red;">로그아웃</a>
                 </td>
@@ -242,6 +243,12 @@
         };
 
         function initApp() {
+            // 닉네임 불러오는 코드 추가
+            const savedNickname = localStorage.getItem('userNickname');
+            if (savedNickname) {
+                document.getElementById('display-nickname').innerText = savedNickname;
+            }
+            
             initTimeSelects();
             renderTypeSelect();
             initCalendar();
