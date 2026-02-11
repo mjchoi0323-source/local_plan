@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>업무 스케줄러 Pro (Time Conflict Check)</title>
+    <title>업무 스케줄러 Pro (Fixed Header)</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#4a90e2">
@@ -14,16 +14,31 @@
     
     <style>
         :root { --primary: #4a90e2; }
-        body { font-family: 'Pretendard', sans-serif; background-color: #f0f2f5; margin: 0; padding: 10px; }
+        body { font-family: 'Pretendard', sans-serif; background-color: #f0f2f5; margin: 0; padding: 0; }
+        
+        /* 상단 고정 컨테이너 */
+        .sticky-header-wrapper {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background-color: #f0f2f5;
+            padding: 10px 10px 0 10px;
+        }
+
         .user-header-table { width: 100%; max-width: 1000px; margin: 0 auto; border-collapse: collapse; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         .user-header-table td { border: 1px solid #000; padding: 12px; font-size: 14px; }
+        
         #calendar-container { max-width: 1000px; margin: 20px auto; background: white; padding: 15px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
         
         /* 모바일 뷰 스타일 */
-        .mobile-list-container { display: none; width: 100%; max-width: 1000px; margin: 0 auto; background: #fff; border: 1px solid #000; }
+        .mobile-list-container { display: none; width: 100%; max-width: 1000px; margin: 0 auto; background: #fff; border: 1px solid #000; border-top: none; }
+        
+        /* 고정될 모바일 네비 부분 */
+        .mobile-sticky-nav { background: #fff; border-left: 1px solid #000; border-right: 1px solid #000; width: 100%; max-width: 1000px; margin: 0 auto; }
         .mobile-nav { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding: 10px 15px; font-weight: bold; background: #fdfdfd; align-items: center; }
         .nav-buttons span { cursor: pointer; padding: 5px 10px; font-size: 1.3rem; }
-        .mobile-month-title { text-align: center; border-bottom: 1px solid #000; padding: 12px; font-size: 1.25rem; font-weight: bold; }
+        .mobile-month-title { text-align: center; border-bottom: 1px solid #000; padding: 12px; font-size: 1.25rem; font-weight: bold; background: #fff; }
+        
         .mobile-row { display: flex; border-bottom: 1px solid #000; min-height: 65px; }
         .date-cell { width: 35%; padding: 10px; border-right: 1px solid #000; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: #fafafa; cursor: pointer; }
         .content-cell-wrapper { width: 65%; display: flex; flex-direction: column; justify-content: center; cursor: pointer; }
@@ -33,33 +48,44 @@
         
         @media (max-width: 768px) {
             #calendar-container { display: none; }
-            .mobile-list-container { display: block; }
+            .mobile-list-container { display: block; padding: 0 10px 20px 10px; background: transparent; border: none; }
+            .mobile-list-content-inner { background: #fff; border: 1px solid #000; }
+            .mobile-sticky-nav { display: block; }
+        }
+        
+        @media (min-width: 769px) {
+            .mobile-sticky-nav { display: none; }
         }
     </style>
 </head>
 <body>
 
-    <table class="user-header-table">
-        <tr>
-            <td style="width:60%;"><strong>사용자</strong> 님 (로컬 모드)</td>
-            <td style="width:40%; text-align:center;">
-                <a href="#" onclick="exportData()" style="text-decoration:none; color:blue;">데이터백업</a> | 
-                <a href="signup.html" style="text-decoration:none; color:red;">로그아웃</a>
-            </td>
-        </tr>
-    </table>
+    <div class="sticky-header-wrapper">
+        <table class="user-header-table">
+            <tr>
+                <td style="width:60%;"><strong>사용자</strong> 님 (로컬 모드)</td>
+                <td style="width:40%; text-align:center;">
+                    <a href="#" onclick="exportData()" style="text-decoration:none; color:blue;">데이터백업</a> | 
+                    <a href="signup.html" style="text-decoration:none; color:red;">로그아웃</a>
+                </td>
+            </tr>
+        </table>
+
+        <div class="mobile-sticky-nav">
+            <div class="mobile-nav">
+                <div class="nav-buttons">
+                    <span onclick="changeMonth(-1)">&lt;</span>
+                    <span onclick="changeMonth(1)">&gt;</span>
+                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="goToday()">오늘</button>
+                </div>
+                <div style="font-size: 0.9rem; color: #666;">월간 리스트</div>
+            </div>
+            <div id="mobile-month-display" class="mobile-month-title"></div>
+        </div>
+    </div>
 
     <div class="mobile-list-container">
-        <div class="mobile-nav">
-            <div class="nav-buttons">
-                <span onclick="changeMonth(-1)">&lt;</span>
-                <span onclick="changeMonth(1)">&gt;</span>
-                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="goToday()">오늘</button>
-            </div>
-            <div style="font-size: 0.9rem; color: #666;">월간 리스트</div>
-        </div>
-        <div id="mobile-month-display" class="mobile-month-title"></div>
-        <div id="mobile-list-content"></div>
+        <div id="mobile-list-content" class="mobile-list-content-inner"></div>
     </div>
 
     <div id="calendar-container">
@@ -140,7 +166,6 @@
     </div>
 
     <script>
-        // 1. 전역 변수 및 DB 초기화
         let db;
         let calendar;
         let currentMonth = new Date();
@@ -171,21 +196,18 @@
             refreshUI();
         }
 
-        // 2. 유틸리티: 시간 문자열을 분(minute)으로 변환
         function timeToMinutes(timeStr) {
             if (!timeStr || !timeStr.includes(':')) return -1;
             const [h, m] = timeStr.split(':').map(Number);
             return h * 60 + m;
         }
 
-        // 3. 핵심 기능: 일정 저장 및 시간 중복 체크
         async function confirmAndSave() {
             const id = document.getElementById('edit-id').value;
             const targetDate = document.getElementById('date-input').value;
             const type = document.getElementById('type-select').value;
             const planNote = document.getElementById('plan-input').value;
 
-            // 현재 입력하는 일정의 시간대 파악
             let newStart = "";
             let newEnd = "";
             if (type === 'ETC') {
@@ -204,36 +226,27 @@
 
             store.getAll().onsuccess = (e) => {
                 const allData = e.target.result;
-
-                // 중복 일정 필터링 (같은 날짜, 휴무 아님, 본인 아님, 시간 겹침)
                 const overlaps = allData.filter(ev => {
                     if (ev.schedule_date !== targetDate || ev.id == id || ev.schedule_type === 'OFF') return false;
-                    
                     let exStart = ev.start_time || (userTimeSettings[ev.schedule_type] ? userTimeSettings[ev.schedule_type].start : "");
                     let exEnd = ev.end_time || (userTimeSettings[ev.schedule_type] ? userTimeSettings[ev.schedule_type].end : "");
-
                     const exSMin = timeToMinutes(exStart);
                     const exEMin = timeToMinutes(exEnd);
-
                     return (newSMin < exEMin) && (newEMin > exSMin);
                 });
 
-                // 겹치는 일정이 있다면 정확한 정보 출력 후 확인
                 if (overlaps.length > 0) {
                     let infoMsg = overlaps.map(o => {
                         const timeText = getTimeText(o);
                         return `• [${o.schedule_type}] ${o.plan_note || '메모없음'} (${timeText})`;
                     }).join('\n');
-
                     const confirmMsg = `⚠️ 시간대가 겹치는 일정이 존재합니다!\n\n` +
                                        `[겹치는 일정]\n${infoMsg}\n\n` +
                                        `기존 일정을 삭제하고 현재 일정으로 덮어쓰시겠습니까?`;
-
                     if (!confirm(confirmMsg)) return;
                     overlaps.forEach(o => store.delete(o.id));
                 }
 
-                // 저장 실행
                 const data = {
                     schedule_date: targetDate,
                     schedule_type: type,
@@ -245,13 +258,13 @@
 
                 store.put(data);
                 tx.oncomplete = () => {
-                    bootstrap.Modal.getInstance(document.getElementById('scheduleModal')).hide();
+                    const schedModal = bootstrap.Modal.getInstance(document.getElementById('scheduleModal'));
+                    if(schedModal) schedModal.hide();
                     refreshUI();
                 };
             };
         }
 
-        // 4. UI 갱신 및 캘린더 로직
         function refreshUI() {
             if (calendar) calendar.refetchEvents();
             renderMobileList();
@@ -347,7 +360,6 @@
             };
         }
 
-        // 5. 유틸리티 및 기타 모달 제어
         function deleteSchedule() {
             if (!confirm("정말 삭제하시겠습니까?")) return;
             const id = Number(document.getElementById('edit-id').value);
@@ -365,7 +377,8 @@
             document.getElementById('view-type').innerText = ev.schedule_type;
             document.getElementById('view-time').innerText = getTimeText(ev);
             document.getElementById('view-note').innerText = ev.plan_note || "(메모 없음)";
-            bootstrap.Modal.getOrCreateInstance(document.getElementById('dailyListModal')).hide();
+            const listModal = bootstrap.Modal.getInstance(document.getElementById('dailyListModal'));
+            if(listModal) listModal.hide();
             new bootstrap.Modal(document.getElementById('viewModal')).show();
         }
 
