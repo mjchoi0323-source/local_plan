@@ -39,13 +39,16 @@
         .nav-buttons span { cursor: pointer; padding: 5px 10px; font-size: 1.3rem; }
         .mobile-month-title { text-align: center; border-bottom: 1px solid #000; padding: 12px; font-size: 1.25rem; font-weight: bold; background: #fff; }
         
-        .mobile-row { display: flex; border-bottom: 1px solid #000; min-height: 65px; }
+        .mobile-row { display: flex; border-bottom: 1px solid #000; min-height: 65px; scroll-margin-top: 195px; } /* 스크롤 위치 보정 */
         .date-cell { width: 35%; padding: 10px; border-right: 1px solid #000; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: #fafafa; cursor: pointer; }
         .content-cell-wrapper { width: 65%; display: flex; flex-direction: column; justify-content: center; cursor: pointer; }
         .event-item-mobile { padding: 10px 15px; color: var(--primary); font-weight: bold; font-size: 0.95rem; }
         .empty-cell { padding: 15px; color: #bbb; text-align: center; font-style: italic; }
         .list-time-badge { font-size: 0.8rem; color: #666; background: #e9ecef; padding: 2px 6px; border-radius: 4px; margin-top: 4px; display: inline-block; }
         
+        /* 오늘 날짜 강조 효과 */
+        .today-highlight { background-color: #fff9db !important; }
+
         @media (max-width: 768px) {
             #calendar-container { display: none; }
             .mobile-list-container { display: block; padding: 0 10px 20px 10px; background: transparent; border: none; }
@@ -303,6 +306,9 @@
             title.innerText = `${year}년 ${month + 1}월`;
             container.innerHTML = '';
 
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
             const lastDay = new Date(year, month + 1, 0).getDate();
             const tx = db.transaction("schedules", "readonly");
             
@@ -313,9 +319,11 @@
                     const dayEvents = data.filter(ev => ev.schedule_date === dStr);
                     const w = new Date(year, month, i).getDay();
                     const color = (w === 0) ? 'red' : (w === 6 ? 'blue' : 'black');
+                    const isToday = (dStr === todayStr);
 
                     const row = document.createElement('div');
-                    row.className = 'mobile-row';
+                    row.className = `mobile-row ${isToday ? 'today-highlight' : ''}`;
+                    row.id = `mobile-date-${dStr}`; // 스크롤 이동을 위한 ID 부여
                     row.innerHTML = `
                         <div class="date-cell" onclick="showDailyListModal('${dStr}')">
                             <span style="color:${color}; font-weight:bold; font-size:1.2rem;">${i}</span>
@@ -434,7 +442,34 @@
         }
 
         function changeMonth(val) { currentMonth.setMonth(currentMonth.getMonth() + val); refreshUI(); }
-        function goToday() { currentMonth = new Date(); refreshUI(); }
+        
+        // 오늘 버튼 기능 수정
+        function goToday() {
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+            
+            // 1. PC 캘린더 이동
+            if (calendar) calendar.today();
+
+            // 2. 모바일 리스트 처리
+            const isDifferentMonth = (currentMonth.getFullYear() !== today.getFullYear() || currentMonth.getMonth() !== today.getMonth());
+            
+            if (isDifferentMonth) {
+                currentMonth = new Date();
+                refreshUI();
+                // 데이터 렌더링 후 스크롤을 위해 약간의 지연시간 필요
+                setTimeout(() => scrollToToday(todayStr), 100);
+            } else {
+                scrollToToday(todayStr);
+            }
+        }
+
+        function scrollToToday(todayStr) {
+            const element = document.getElementById(`mobile-date-${todayStr}`);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
 
         function initTimeSelects() {
             const h = document.querySelectorAll('#start-hour, #end-hour');
