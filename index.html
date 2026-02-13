@@ -129,8 +129,10 @@
         <div class="mobile-sticky-nav">
             <div class="mobile-nav">
                 <div class="nav-buttons">
+                    <span onclick="changeYear(-1)">&lt;&lt;</span>
                     <span onclick="changeMonth(-1)">&lt;</span>
                     <span onclick="changeMonth(1)">&gt;</span>
+                    <span onclick="changeYear(1)">&gt;&gt;</span>
                     <button class="btn btn-sm btn-outline-secondary ms-2" onclick="goToday()">오늘</button>
                 </div>
                 <button class="btn btn-sm btn-primary" onclick="openSearchModal()">🔍 일정 검색</button>
@@ -827,7 +829,22 @@
             return {'M':'#4caf50','K':'#ff9800','A':'#2196f3','OFF':'#f44336'}[type] || '#607d8b';
         }
 
-        function changeMonth(val) { currentMonth.setMonth(currentMonth.getMonth() + val); refreshUI(); }
+        // 년 단위 이동 함수 추가
+        function changeYear(val) {
+            currentMonth.setFullYear(currentMonth.getFullYear() + val);
+            if (calendar) {
+                calendar.gotoDate(currentMonth);
+            }
+            refreshUI();
+        }
+
+        function changeMonth(val) { 
+            currentMonth.setMonth(currentMonth.getMonth() + val); 
+            if (calendar) {
+                calendar.gotoDate(currentMonth);
+            }
+            refreshUI(); 
+        }
         
         function goToday() {
             const today = new Date();
