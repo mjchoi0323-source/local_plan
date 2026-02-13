@@ -331,6 +331,13 @@
             alert("설정이 저장되었습니다.");
         }
 
+        function openSearchModal() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('search-results-list').innerHTML = '<p class="text-center text-muted py-4">검색어를 입력해 주세요.</p>';
+            new bootstrap.Modal(document.getElementById('searchModal')).show();
+            setTimeout(() => document.getElementById('search-input').focus(), 500);
+        }
+
         function executeSearch() {
             const keyword = document.getElementById('search-input').value.trim().toLowerCase();
             if (!keyword) return;
@@ -339,7 +346,8 @@
             tx.objectStore("schedules").getAll().onsuccess = (e) => {
                 const results = e.target.result.filter(ev => 
                     ev.schedule_type.toLowerCase().includes(keyword) || 
-                    (ev.plan_note && ev.plan_note.toLowerCase().includes(keyword))
+                    (ev.plan_note && ev.plan_note.toLowerCase().includes(keyword)) ||
+                    ev.schedule_date.includes(keyword)
                 ).sort((a, b) => new Date(b.schedule_date) - new Date(a.schedule_date));
 
                 const container = document.getElementById('search-results-list');
@@ -349,6 +357,8 @@
                     results.forEach(res => {
                         const div = document.createElement('div');
                         div.className = 'list-group-item list-group-item-action mb-2';
+                        div.style.borderLeft = `5px solid ${getEventColor(res.schedule_type)}`;
+                        
                         div.innerHTML = `
                             <div class="d-flex justify-content-between align-items-center">
                                 <strong>${res.schedule_date}</strong>
@@ -358,7 +368,7 @@
                         `;
                         div.onclick = () => {
                             bootstrap.Modal.getInstance(document.getElementById('searchModal')).hide();
-                            goToDate(res.schedule_date);
+                            showDetail(res);
                         };
                         container.appendChild(div);
                     });
@@ -412,9 +422,6 @@
                 newEnd = userTimeSettings[type].end;
             }
 
-            const newSMin = timeToMinutes(newStart);
-            const newEMin = timeToMinutes(newEnd);
-
             const tx = db.transaction("schedules", "readwrite");
             const store = tx.objectStore("schedules");
 
@@ -422,54 +429,27 @@
                 const allData = e.target.result;
                 const sameDayEvents = allData.filter(ev => ev.schedule_date === targetDate && ev.id != id);
                 
-                // 1. 같은 타입 중복 체크 (ETC는 제외하도록 수정)
                 if (type !== 'ETC') {
                     const sameTypeEvent = sameDayEvents.find(ev => ev.schedule_type === type);
                     if (sameTypeEvent) {
-                        const confirmMsg = `⚠️ 이미 같은 날짜에 동일한 타입 [${type}] 일정(${sameTypeEvent.plan_note || '메모없음'})이 존재합니다.\n\n해당 일정을 삭제하고 현재 일정으로 덮어쓰시겠습니까?`;
-                        if (!confirm(confirmMsg)) return;
+                        if (!confirm(`⚠️ 이미 같은 날짜에 동일한 타입 [${type}] 일정이 존재합니다. 덮어쓰시겠습니까?`)) return;
                         store.delete(sameTypeEvent.id);
                     }
                 }
 
-                // 2. 휴무(OFF) 관련 특수 로직
                 if (type === 'OFF') {
                     const otherEvents = sameDayEvents.filter(ev => ev.schedule_type !== 'OFF');
                     if (otherEvents.length > 0) {
-                        let deleteList = otherEvents.map(ev => `• [${ev.schedule_type}] ${ev.plan_note || '메모없음'}`).join('\n');
-                        if (confirm(`⚠️ Day Off를 설정하면 해당 날짜의 다른 일정이 모두 삭제됩니다:\n\n${deleteList}\n\n계속하시겠습니까?`)) {
+                        if (confirm(`⚠️ 이 날짜에는 이미 근무 일정이 등록되어 있습니다.\nDay Off를 설정하면 기존 일정이 모두 삭제됩니다. 계속하시겠습니까?`)) {
                             otherEvents.forEach(ev => store.delete(ev.id));
                         } else { return; }
                     }
                 } else {
                     const existingOff = sameDayEvents.find(ev => ev.schedule_type === 'OFF');
                     if (existingOff) {
-                        if (confirm(`⚠️ 이 날짜에는 [Day Off]가 설정되어 있습니다.\n새 일정을 추가하면 [Day Off]가 삭제됩니다.\n\n계속하시겠습니까?`)) {
+                        if (confirm(`⚠️ 이 날짜에는 [Day Off]가 설정되어 있습니다.\n새 일정을 추가하면 [Day Off]가 삭제됩니다. 계속하시겠습니까?`)) {
                             store.delete(existingOff.id);
                         } else { return; }
-                    }
-                }
-
-                // 3. 시간 중복 체크 (타입이 ETC가 아닌 경우에만 겹침 확인)
-                if (type !== 'OFF') {
-                    const overlaps = allData.filter(ev => {
-                        // 중복 체크 대상: 같은 날짜, 다른 ID, OFF 아님, 같은 타입 아님
-                        if (ev.schedule_date !== targetDate || ev.id == id || ev.schedule_type === 'OFF' || ev.schedule_type === type) return false;
-                        
-                        // ETC 타입은 시간 정보가 없을 수 있으므로 시간 정보가 있는 경우에만 체크
-                        if (!ev.start_time || !newStart) return false;
-
-                        let exStart = ev.start_time; 
-                        let exEnd = ev.end_time;
-                        const exSMin = timeToMinutes(exStart);
-                        const exEMin = timeToMinutes(exEnd);
-                        return (newSMin < exEMin) && (newEMin > exSMin);
-                    });
-
-                    if (overlaps.length > 0) {
-                        let infoMsg = overlaps.map(o => `• [${o.schedule_type}] ${o.plan_note || '메모없음'} (${getTimeText(o)})`).join('\n');
-                        if (!confirm(`⚠️ 시간대가 겹치는 다른 타입의 일정이 존재합니다!\n\n[겹치는 일정]\n${infoMsg}\n\n기존 일정을 삭제하고 덮어쓰시겠습니까?`)) return;
-                        overlaps.forEach(o => store.delete(o.id));
                     }
                 }
 
@@ -516,7 +496,7 @@
                     };
                 },
                 dateClick: (info) => showDailyListModal(info.dateStr),
-                eventClick: (info) => showDailyListModal(info.event.startStr)
+                eventClick: (info) => showDetail(info.event.extendedProps)
             });
             calendar.render();
         }
@@ -606,8 +586,12 @@
             document.getElementById('view-type').innerText = ev.schedule_type;
             document.getElementById('view-time').innerText = getTimeText(ev);
             document.getElementById('view-note').innerText = ev.plan_note || "(메모 없음)";
-            const listModal = bootstrap.Modal.getInstance(document.getElementById('dailyListModal'));
-            if(listModal) listModal.hide();
+            
+            const searchModal = bootstrap.Modal.getInstance(document.getElementById('searchModal'));
+            if(searchModal) searchModal.hide();
+            const dailyModal = bootstrap.Modal.getInstance(document.getElementById('dailyListModal'));
+            if(dailyModal) dailyModal.hide();
+
             new bootstrap.Modal(document.getElementById('viewModal')).show();
         }
 
