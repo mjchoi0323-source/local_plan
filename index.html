@@ -72,7 +72,34 @@
         
         .today-highlight { background-color: #fff9db !important; }
 
-        #search-results-list .list-group-item { cursor: pointer; border-left: 5px solid #4a90e2; }
+        /* --- 스와이프 삭제 관련 스타일 --- */
+        #search-results-list .list-group-item { 
+            padding: 0; 
+            overflow: hidden; 
+            position: relative; 
+            background-color: #dc3545; /* 배경은 삭제색(빨강) */
+            border: none;
+            border-bottom: 1px solid #eee;
+        }
+        .swipe-content {
+            background-color: #fff;
+            padding: 12px;
+            position: relative;
+            z-index: 2;
+            transition: transform 0.3s ease;
+            cursor: pointer;
+            border-left: 5px solid #4a90e2;
+        }
+        .swipe-delete-indicator {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-weight: bold;
+            z-index: 1;
+        }
+        /* -------------------------------- */
 
         @media (max-width: 768px) {
             #calendar-container { display: none; }
@@ -338,6 +365,45 @@
             setTimeout(() => document.getElementById('search-input').focus(), 500);
         }
 
+        // 스와이프 기능 적용 함수
+        function applySwipeToDelete(element, scheduleId, scheduleDate) {
+            let startX = 0;
+            let currentX = 0;
+            const threshold = -80; // 이만큼 당기면 삭제 실행
+
+            element.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX;
+            }, {passive: true});
+
+            element.addEventListener('touchmove', (e) => {
+                currentX = e.touches[0].clientX - startX;
+                if (currentX < 0) { // 왼쪽으로만 당겨지게
+                    // 너무 많이 당겨지지 않게 제한
+                    const transformX = Math.max(currentX, -120);
+                    element.style.transform = `translateX(${transformX}px)`;
+                }
+            }, {passive: true});
+
+            element.addEventListener('touchend', (e) => {
+                if (currentX < threshold) {
+                    // 삭제 확인
+                    if (confirm(`[${scheduleDate}] 일정을 바로 삭제하시겠습니까?`)) {
+                        const tx = db.transaction("schedules", "readwrite");
+                        tx.objectStore("schedules").delete(scheduleId);
+                        tx.oncomplete = () => {
+                            executeSearch(); // 리스트 갱신
+                            refreshUI(true); // 배경 UI 갱신
+                        };
+                    } else {
+                        element.style.transform = `translateX(0px)`;
+                    }
+                } else {
+                    element.style.transform = `translateX(0px)`;
+                }
+                currentX = 0;
+            });
+        }
+
         function executeSearch() {
             const keyword = document.getElementById('search-input').value.trim().toLowerCase();
             if (!keyword) return;
@@ -355,25 +421,40 @@
 
                 if (results.length > 0) {
                     results.forEach(res => {
-                        const div = document.createElement('div');
-                        div.className = 'list-group-item list-group-item-action mb-2';
-                        div.style.borderLeft = `5px solid ${getEventColor(res.schedule_type)}`;
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'list-group-item mb-2';
                         
-                        div.innerHTML = `
-                            <div class="d-flex justify-content-between align-items-center">
-                                <strong>${res.schedule_date}</strong>
-                                <span class="badge bg-${res.schedule_type}">${res.schedule_type}</span>
+                        wrapper.innerHTML = `
+                            <div class="swipe-delete-indicator">삭제</div>
+                            <div class="swipe-content" id="swipe-${res.id}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>${res.schedule_date}</strong>
+                                    <span class="badge bg-${res.schedule_type}">${res.schedule_type}</span>
+                                </div>
+                                <div class="mt-1 text-truncate" style="font-size: 0.9rem;">${res.plan_note || '(메모 없음)'}</div>
                             </div>
-                            <div class="mt-1 text-truncate" style="font-size: 0.9rem;">${res.plan_note || '(메모 없음)'}</div>
                         `;
-                        div.onclick = () => {
-                            bootstrap.Modal.getInstance(document.getElementById('searchModal')).hide();
-                            showDetail(res);
+
+                        const swipeContent = wrapper.querySelector('.swipe-content');
+                        
+                        // 클릭 시 상세보기 (스와이프가 아닐 때만)
+                        swipeContent.onclick = (e) => {
+                            // 단순 클릭인지 스와이프인지 구분하기 위해 transform 체크
+                            const style = window.getComputedStyle(swipeContent);
+                            const matrix = new WebKitCSSMatrix(style.transform);
+                            if (matrix.m41 === 0) {
+                                bootstrap.Modal.getInstance(document.getElementById('searchModal')).hide();
+                                showDetail(res);
+                            }
                         };
-                        container.appendChild(div);
+
+                        // 스와이프 이벤트 적용
+                        applySwipeToDelete(swipeContent, res.id, res.schedule_date);
+
+                        container.appendChild(wrapper);
                     });
                 } else {
-                    container.innerHTML = '<p class="text-center text-danger py-4">검색 결과가 없습니다.</p>';
+                    container.innerHTML = '<p class="text-center text-muted py-4">검색 결과가 없습니다.</p>';
                 }
             };
         }
