@@ -112,16 +112,17 @@
         }
     </style>
 </head>
+
 <body>
 
     <div class="sticky-header-wrapper">
         <table class="user-header-table">
             <tr>
-                <td style="width:50%;"><strong id="display-nickname">사용자</strong> 님</td>
-                <td style="width:50%; text-align:center;">
-                    <a href="#" onclick="openBatchModal()" style="text-decoration:none; color:purple; font-weight:bold;">📅일괄등록</a> |
-                    <a href="#" onclick="openConfigModal()" style="text-decoration:none; color:green; font-weight:bold;">⚙️설정</a> | 
-                    <a href="#" onclick="exportData()" style="text-decoration:none; color:blue;">데이터</a>
+                <td style="width:30%;"><strong id="display-nickname">user</strong></td>
+                <td style="width:70%; text-align:center;">
+                    <a href="#" onclick="openBatchModal()" style="text-decoration:none; color:purple; font-weight:bold;" data-i18n="nav_batch">📅일괄등록</a> |
+                    <a href="#" onclick="openConfigModal()" style="text-decoration:none; color:green; font-weight:bold;" data-i18n="nav_config">⚙️설정</a> | 
+                    <a href="#" onclick="exportData()" style="text-decoration:none; color:blue;" data-i18n="nav_data">데이터</a>
                 </td>
             </tr>
         </table>
@@ -133,9 +134,9 @@
                     <span onclick="changeMonth(-1)">&lt;</span>
                     <span onclick="changeMonth(1)">&gt;</span>
                     <span onclick="changeYear(1)">&gt;&gt;</span>
-                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="goToday()">오늘</button>
+                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="goToday()" data-i18n="btn_today">오늘</button>
                 </div>
-                <button class="btn btn-sm btn-primary" onclick="openSearchModal()">🔍 일정 검색</button>
+                <button class="btn btn-sm btn-primary" onclick="openSearchModal()" data-i18n="btn_search_nav">🔍 일정 검색</button>
             </div>
             <div id="mobile-month-display" class="mobile-month-title"></div>
         </div>
@@ -153,34 +154,34 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title">기간 단위 일괄 등록</h5>
+                    <h5 class="modal-title" data-i18n="batch_title">기간 단위 일괄 등록</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="fw-bold">시작 날짜</label>
+                        <label class="fw-bold" data-i18n="label_start_date">시작 날짜</label>
                         <input type="date" id="batch-start-date" class="form-control">
                     </div>
                     <div class="mb-3">
-                        <label class="fw-bold">종료 날짜</label>
+                        <label class="fw-bold" data-i18n="label_end_date">종료 날짜</label>
                         <input type="date" id="batch-end-date" class="form-control">
                     </div>
                     <div class="mb-3">
-                        <label class="fw-bold">근무 타입</label>
+                        <label class="fw-bold" data-i18n="label_type">근무 타입</label>
                         <select id="batch-type-select" class="form-select"></select>
                     </div>
                     <div class="mb-3">
-                        <label class="fw-bold">공통 메모 (선택사항)</label>
-                        <input type="text" id="batch-plan-input" class="form-control" placeholder="일괄 적용할 메모">
+                        <label class="fw-bold" data-i18n="label_note">공통 메모 (선택사항)</label>
+                        <input type="text" id="batch-plan-input" class="form-control" data-i18n-placeholder="batch_note_ph">
                     </div>
-                    <div class="alert alert-warning small">
+                    <div class="alert alert-warning small" data-i18n="batch_alert">
                         * 동일한 타입의 일정은 유지됩니다.<br>
                         * 다른 타입의 일정은 선택한 타입으로 덮어씌워집니다.
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
-                    <button type="button" class="btn btn-purple text-white" style="background-color: purple;" onclick="executeBatchSave()">일괄 저장</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="btn_close">닫기</button>
+                    <button type="button" class="btn btn-purple text-white" style="background-color: purple;" onclick="executeBatchSave()" data-i18n="btn_batch_save">일괄 저장</button>
                 </div>
             </div>
         </div>
@@ -190,37 +191,45 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title">근무 시간 및 정보 설정</h5>
+                    <h5 class="modal-title" data-i18n="config_title">근무 시간 및 정보 설정</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-4 pb-3 border-bottom">
-                        <label class="fw-bold mb-2">사용자 닉네임</label>
-                        <input type="text" id="cfg-nickname" class="form-control" placeholder="사용자 이름을 입력하세요.">
+                    <div class="mb-3 pb-3 border-bottom">
+                        <label class="fw-bold mb-2" data-i18n="label_lang">언어 설정 (Language)</label>
+                        <select id="cfg-lang" class="form-select" onchange="changeLanguage(this.value)">
+                            <option value="ko">한국어 (Korean)</option>
+                            <option value="en">English </option>
+                            <option value="ja">日本語 (Japanese)</option>
+                        </select>
                     </div>
-                    <p class="text-muted small">* 변경된 시간은 새로 등록하는 일정부터 적용됩니다.</p>
+                    <div class="mb-4 pb-3 border-bottom">
+                        <label class="fw-bold mb-2" data-i18n="label_nickname">사용자 닉네임</label>
+                        <input type="text" id="cfg-nickname" class="form-control" data-i18n-placeholder="cfg_nick_ph">
+                    </div>
+                    <p class="text-muted small" data-i18n="config_hint">* 변경된 시간은 새로 등록하는 일정부터 적용됩니다.</p>
                     <div class="mb-3">
-                        <label class="fw-bold">M (오전)</label>
+                        <label class="fw-bold" data-i18n="type_m">M (오전)</label>
                         <div class="d-flex gap-2 align-items-center">
                             <input type="time" id="cfg-m-start" class="form-control"> ~ <input type="time" id="cfg-m-end" class="form-control">
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="fw-bold">A (통상)</label>
+                        <label class="fw-bold" data-i18n="type_a">A (통상)</label>
                         <div class="d-flex gap-2 align-items-center">
                             <input type="time" id="cfg-a-start" class="form-control"> ~ <input type="time" id="cfg-a-end" class="form-control">
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="fw-bold">K (오후)</label>
+                        <label class="fw-bold" data-i18n="type_k">K (오후)</label>  
                         <div class="d-flex gap-2 align-items-center">
                             <input type="time" id="cfg-k-start" class="form-control"> ~ <input type="time" id="cfg-k-end" class="form-control">
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
-                    <button type="button" class="btn btn-success" onclick="saveConfig()">설정 저장</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="btn_close">닫기</button>
+                    <button type="button" class="btn btn-success" onclick="saveConfig()" data-i18n="btn_save_config">설정 저장</button>
                 </div>
             </div>
         </div>
@@ -230,16 +239,16 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title">스케줄 검색</h5>
+                    <h5 class="modal-title" data-i18n="search_title">스케줄 검색</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="input-group mb-3">
-                        <input type="text" id="search-input" class="form-control" placeholder="메모 또는 타입 입력 (예: M, 미팅...)" onkeyup="if(event.keyCode==13) executeSearch()">
-                        <button class="btn btn-primary" onclick="executeSearch()">검색</button>
+                        <input type="text" id="search-input" class="form-control" data-i18n-placeholder="search_ph" onkeyup="if(event.keyCode==13) executeSearch()">
+                        <button class="btn btn-primary" onclick="executeSearch()" data-i18n="btn_search_exec">검색</button>
                     </div>
                     <div id="search-results-list" class="list-group" style="max-height: 400px; overflow-y: auto;">
-                        <p class="text-center text-muted py-4">검색어를 입력해 주세요.</p>
+                        <p class="text-center text-muted py-4" data-i18n="search_intro">검색어를 입력해 주세요.</p>
                     </div>
                 </div>
             </div>
@@ -250,14 +259,14 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-info text-white">
-                    <h5 class="modal-title fw-bold"><span id="list-modal-date"></span> 일정 목록</h5>
+                    <h5 class="modal-title fw-bold"><span id="list-modal-date"></span> <span data-i18n="list_title">일정 목록</span></h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-0">
                     <div id="daily-list-content" class="list-group list-group-flush"></div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-primary w-100" id="list-add-btn">새 일정 추가</button>
+                    <button type="button" class="btn btn-primary w-100" id="list-add-btn" data-i18n="btn_add_new">새 일정 추가</button>
                 </div>
             </div>
         </div>
@@ -267,29 +276,29 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="modalTitle">스케줄 등록</h5>
+                    <h5 class="modal-title" id="modalTitle" data-i18n="sch_reg_title">스케줄 등록</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="edit-id">
-                    <div class="mb-3"><label class="form-label fw-bold">날짜</label><input type="date" id="date-input" class="form-control"></div>
+                    <div class="mb-3"><label class="form-label fw-bold" data-i18n="label_date">날짜</label><input type="date" id="date-input" class="form-control"></div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">타입 선택</label>
+                        <label class="form-label fw-bold" data-i18n="label_type">타입 선택</label>
                         <select id="type-select" class="form-select" onchange="toggleCustomTime()"></select>
                     </div>
                     <div id="custom-time-container" class="mb-3" style="display:none;">
-                        <label class="form-label fw-bold">시간 설정</label>
+                        <label class="form-label fw-bold" data-i18n="label_time_setting">시간 설정</label>
                         <div class="d-flex align-items-center gap-2">
                             <select id="start-hour" class="form-select"></select>:<select id="start-min" class="form-select"></select>
                             ~
                             <select id="end-hour" class="form-select"></select>:<select id="end-min" class="form-select"></select>
                         </div>
                     </div>
-                    <div class="mb-3"><label class="form-label fw-bold">계획 및 메모</label><input type="text" id="plan-input" class="form-control" placeholder="계획을 입력하세요."></div>
+                    <div class="mb-3"><label class="form-label fw-bold" data-i18n="label_note">계획 및 메모</label><input type="text" id="plan-input" class="form-control" data-i18n-placeholder="plan_note_ph"></div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
-                    <button type="button" class="btn btn-primary" onclick="confirmAndSave()">저장하기</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="btn_close">닫기</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmAndSave()" data-i18n="btn_save">저장하기</button>
                 </div>
             </div>
         </div>
@@ -299,31 +308,59 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-secondary text-white">
-                    <h5 class="modal-title">상세 일정 정보</h5>
+                    <h5 class="modal-title" data-i18n="detail_title">상세 일정 정보</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3"><label class="fw-bold">날짜</label><div id="view-date" class="p-2 bg-light"></div></div>
-                    <div class="mb-3"><label class="fw-bold">근무 타입</label><div id="view-type" class="p-2 bg-light"></div></div>
-                    <div class="mb-3"><label class="fw-bold">근무 시간</label><div id="view-time" class="p-2 bg-light"></div></div>
-                    <div class="mb-3"><label class="fw-bold">메모 내용</label><div id="view-note" class="p-2 bg-light" style="min-height:80px;"></div></div>
+                    <div class="mb-3"><label class="fw-bold" data-i18n="label_date">날짜</label><div id="view-date" class="p-2 bg-light"></div></div>
+                    <div class="mb-3"><label class="fw-bold" data-i18n="label_type">근무 타입</label><div id="view-type" class="p-2 bg-light"></div></div>
+                    <div class="mb-3"><label class="fw-bold" data-i18n="label_time">근무 시간</label><div id="view-time" class="p-2 bg-light"></div></div>
+                    <div class="mb-3"><label class="fw-bold" data-i18n="label_note">메모 내용</label><div id="view-note" class="p-2 bg-light" style="min-height:80px;"></div></div>
                 </div>
                 <div class="modal-footer justify-content-between">
-                    <button type="button" class="btn btn-danger" onclick="deleteSchedule()">삭제</button>
+                    <button type="button" class="btn btn-danger" onclick="deleteSchedule()" data-i18n="btn_delete">삭제</button>
                     <div>
-                        <button type="button" class="btn btn-warning" onclick="openEditModal()">수정</button>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                        <button type="button" class="btn btn-warning" onclick="openEditModal()" data-i18n="btn_edit">수정</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="btn_close">닫기</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
+    
+<script src="locales/ko.js"></script>
+    <script src="locales/en.js"></script>
+        <script src="locales/ja.js"></script>
     <script>
         let db;
         let calendar;
         let currentMonth = new Date();
-        
+        const i18nData = { ko, en, ja };
+        let currentLang = localStorage.getItem('appLang') || 'ko';
+
+        // 다국어 업데이트 함수
+        function updateI18n() {
+            const lang = i18nData[currentLang];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (lang[key]) el.innerHTML = lang[key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (lang[key]) el.placeholder = lang[key];
+            });
+            if (calendar) calendar.setOption('locale', currentLang);
+            renderTypeSelect();
+        }
+
+        // 언어 변경 처리
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('appLang', lang);
+            updateI18n();
+            refreshUI();
+        }
+
         let userTimeSettings = JSON.parse(localStorage.getItem('workTimeConfig')) || {
             'M': {start: '07:00', end: '15:30'},
             'A': {start: '10:00', end: '18:30'},
@@ -352,6 +389,7 @@
             initTimeSelects();
             renderTypeSelect();
             initCalendar();
+            updateI18n(); // 초기 실행 시 다국어 적용
             refreshUI();
         }
 
@@ -362,12 +400,18 @@
             document.getElementById('batch-end-date').value = today;
             document.getElementById('batch-plan-input').value = "";
             
-            // 타입 선택 셀렉트박스 채우기 (ETC 제외 - 로직 복잡성 방지)
             const bSelect = document.getElementById('batch-type-select');
             bSelect.innerHTML = '';
-            const types = [{v:'M', t:'M (오전)'}, {v:'A', t:'A (통상)'}, {v:'K', t:'K (오후)'}, {v:'OFF', t:'Day Off (휴무)'}];
-            types.forEach(t => {
-                const opt = new Option(t.t, t.v);
+            const t = i18nData[currentLang];
+            // ko.js, en.js의 근무 타입 텍스트 참조
+            const types = [
+                {v:'M', t: t.type_m}, 
+                {v:'A', t: t.type_a}, 
+                {v:'K', t: t.type_k}, 
+                {v:'OFF', t: t.type_off}
+            ];
+            types.forEach(item => {
+                const opt = new Option(item.t, item.v);
                 bSelect.add(opt);
             });
 
@@ -376,15 +420,22 @@
 
         // 일괄 등록 실행
         async function executeBatchSave() {
+            const t = i18nData[currentLang];
             const startStr = document.getElementById('batch-start-date').value;
             const endStr = document.getElementById('batch-end-date').value;
             const type = document.getElementById('batch-type-select').value;
             const planNote = document.getElementById('batch-plan-input').value;
 
-            if (!startStr || !endStr) { alert("날짜를 선택해주세요."); return; }
-            if (new Date(startStr) > new Date(endStr)) { alert("시작일이 종료일보다 늦을 수 없습니다."); return; }
+            if (!startStr || !endStr) { 
+                alert(currentLang === 'ko' ? "날짜를 선택해주세요." : "Please select dates."); 
+                return; 
+            }
+            if (new Date(startStr) > new Date(endStr)) { 
+                alert(currentLang === 'ko' ? "시작일이 종료일보다 늦을 수 없습니다." : "Start date cannot be later than end date."); 
+                return; 
+            }
 
-            if (!confirm("선택한 기간 동안 일괄 등록을 진행하시겠습니까?\n(다른 타입의 일정은 모두 교체됩니다)")) return;
+            if (!confirm(t.msg_confirm_batch)) return;
 
             const tx = db.transaction("schedules", "readwrite");
             const store = tx.objectStore("schedules");
@@ -397,17 +448,10 @@
                 while (currentDate <= endDate) {
                     const dStr = currentDate.toISOString().split('T')[0];
                     const existingEvents = allData.filter(ev => ev.schedule_date === dStr);
-                    
-                    // 로직: 
-                    // 1. 동일한 타입의 일정이 이미 있다면 건너뜀 (유지)
-                    // 2. 다른 타입의 일정이 있다면 삭제 후 선택한 타입으로 등록 (덮어쓰기)
                     const hasSameType = existingEvents.some(ev => ev.schedule_type === type);
 
                     if (!hasSameType) {
-                        // 다른 타입 일정 일괄 삭제
                         existingEvents.forEach(ev => store.delete(ev.id));
-
-                        // 새 일정 등록
                         const data = {
                             schedule_date: dStr,
                             schedule_type: type,
@@ -417,12 +461,11 @@
                         };
                         store.put(data);
                     }
-
                     currentDate.setDate(currentDate.getDate() + 1);
                 }
 
                 tx.oncomplete = () => {
-                    alert("일괄 등록이 완료되었습니다.");
+                    alert(t.msg_batch_ok);
                     bootstrap.Modal.getInstance(document.getElementById('batchModal')).hide();
                     refreshUI(true);
                 };
@@ -430,7 +473,8 @@
         }
 
         function openConfigModal() {
-            document.getElementById('cfg-nickname').value = localStorage.getItem('userNickname') || '사용자';
+            document.getElementById('cfg-nickname').value = localStorage.getItem('userNickname') || 'user';
+            document.getElementById('cfg-lang').value = currentLang; // 언어 설정 반영
             document.getElementById('cfg-m-start').value = userTimeSettings['M'].start;
             document.getElementById('cfg-m-end').value = userTimeSettings['M'].end;
             document.getElementById('cfg-a-start').value = userTimeSettings['A'].start;
@@ -441,6 +485,7 @@
         }
 
         function saveConfig() {
+            const t = i18nData[currentLang];
             const isValidTimeRange = (start, end) => {
                 if (!start || !end) return true;
                 return start <= end;
@@ -453,11 +498,12 @@
             const kS = document.getElementById('cfg-k-start').value;
             const kE = document.getElementById('cfg-k-end').value;
 
-            if (!isValidTimeRange(mS, mE)) { alert("M(오전)의 시작 시간이 종료 시간보다 늦을 수 없습니다."); return; }
-            if (!isValidTimeRange(aS, aE)) { alert("A(통상)의 시작 시간이 종료 시간보다 늦을 수 없습니다."); return; }
-            if (!isValidTimeRange(kS, kE)) { alert("K(오후)의 시작 시간이 종료 시간보다 늦을 수 없습니다."); return; }
+            if (!isValidTimeRange(mS, mE) || !isValidTimeRange(aS, aE) || !isValidTimeRange(kS, kE)) { 
+                alert(currentLang === 'ko' ? "시작 시간이 종료 시간보다 늦을 수 없습니다." : "Start time cannot be later than end time."); 
+                return; 
+            }
 
-            const newNickname = document.getElementById('cfg-nickname').value.trim() || '사용자';
+            const newNickname = document.getElementById('cfg-nickname').value.trim() || 'user';
             localStorage.setItem('userNickname', newNickname);
             document.getElementById('display-nickname').innerText = newNickname;
 
@@ -468,12 +514,12 @@
             localStorage.setItem('workTimeConfig', JSON.stringify(userTimeSettings));
             renderTypeSelect(); 
             bootstrap.Modal.getInstance(document.getElementById('configModal')).hide();
-            alert("설정이 저장되었습니다.");
+            alert(t.msg_save_ok);
         }
 
         function openSearchModal() {
             document.getElementById('search-input').value = '';
-            document.getElementById('search-results-list').innerHTML = '<p class="text-center text-muted py-4">검색어를 입력해 주세요.</p>';
+            document.getElementById('search-results-list').innerHTML = `<p class="text-center text-muted py-4" data-i18n="search_intro">${i18nData[currentLang].search_intro}</p>`;
             new bootstrap.Modal(document.getElementById('searchModal')).show();
             setTimeout(() => document.getElementById('search-input').focus(), 500);
         }
@@ -482,6 +528,7 @@
             let startX = 0;
             let currentX = 0;
             const threshold = -80;
+            const t = i18nData[currentLang];
 
             element.addEventListener('touchstart', (e) => {
                 startX = e.touches[0].clientX;
@@ -497,7 +544,7 @@
 
             element.addEventListener('touchend', (e) => {
                 if (currentX < threshold) {
-                    if (confirm(`[${scheduleDate}] 일정을 바로 삭제하시겠습니까?`)) {
+                    if (confirm(t.msg_confirm_delete)) {
                         const tx = db.transaction("schedules", "readwrite");
                         tx.objectStore("schedules").delete(scheduleId);
                         tx.oncomplete = () => {
@@ -516,6 +563,7 @@
 
         function executeSearch() {
             const keyword = document.getElementById('search-input').value.trim().toLowerCase();
+            const t = i18nData[currentLang];
             if (!keyword) return;
 
             const tx = db.transaction("schedules", "readonly");
@@ -534,13 +582,13 @@
                         const wrapper = document.createElement('div');
                         wrapper.className = 'list-group-item mb-2';
                         wrapper.innerHTML = `
-                            <div class="swipe-delete-indicator">삭제</div>
+                            <div class="swipe-delete-indicator">${t.msg_swipe_delete}</div>
                             <div class="swipe-content" id="swipe-${res.id}">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <strong>${res.schedule_date}</strong>
                                     <span class="badge bg-${res.schedule_type}">${res.schedule_type}</span>
                                 </div>
-                                <div class="mt-1 text-truncate" style="font-size: 0.9rem;">${res.plan_note || '(메모 없음)'}</div>
+                                <div class="mt-1 text-truncate" style="font-size: 0.9rem;">${res.plan_note || ''}</div>
                             </div>
                         `;
                         const swipeContent = wrapper.querySelector('.swipe-content');
@@ -556,25 +604,12 @@
                         container.appendChild(wrapper);
                     });
                 } else {
-                    container.innerHTML = '<p class="text-center text-muted py-4">검색 결과가 없습니다.</p>';
+                    container.innerHTML = `<p class="text-center text-muted py-4">${t.search_no_result}</p>`;
                 }
             };
         }
 
-        function goToDate(dateStr) {
-            const targetDate = new Date(dateStr);
-            currentMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
-            if (calendar) calendar.gotoDate(dateStr);
-            refreshUI();
-            setTimeout(() => {
-                const element = document.getElementById(`mobile-date-${dateStr}`);
-                if (element) {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    element.classList.add('today-highlight');
-                    setTimeout(() => element.classList.remove('today-highlight'), 2000);
-                }
-            }, 300);
-        }
+        // goToDate 함수 내 텍스트는 동적으로 생성되므로 생략하거나 필요 시 다국어화 가능
 
         function timeToMinutes(timeStr) {
             if (!timeStr || !timeStr.includes(':')) return -1;
@@ -588,7 +623,10 @@
             const type = document.getElementById('type-select').value;
             const planNote = document.getElementById('plan-input').value;
 
-            if (!targetDate) { alert("날짜를 선택해 주세요."); return; }
+            if (!targetDate) { 
+                alert(currentLang === 'ko' ? "날짜를 선택해 주세요." : "Please select a date."); 
+                return; 
+            }
 
             let newStart = "";
             let newEnd = "";
@@ -597,7 +635,7 @@
                 newStart = document.getElementById('start-hour').value + ":" + document.getElementById('start-min').value;
                 newEnd = document.getElementById('end-hour').value + ":" + document.getElementById('end-min').value;
                 if (timeToMinutes(newStart) > timeToMinutes(newEnd)) {
-                    alert("시작 시간이 종료 시간보다 늦을 수 없습니다.");
+                    alert(currentLang === 'ko' ? "시작 시간이 종료 시간보다 늦을 수 없습니다." : "Start time cannot be later than end time.");
                     return;
                 }
             } else if (type !== 'OFF') {
@@ -615,7 +653,8 @@
                 if (type !== 'ETC') {
                     const sameTypeEvent = sameDayEvents.find(ev => ev.schedule_type === type);
                     if (sameTypeEvent) {
-                        if (!confirm(`⚠️ 이미 같은 날짜에 동일한 타입 [${type}] 일정이 존재합니다. 덮어쓰시겠습니까?`)) return;
+                        const confirmMsg = currentLang === 'ko' ? `⚠️ 이미 같은 날짜에 동일한 타입 [${type}] 일정이 존재합니다. 덮어쓰시겠습니까?` : `⚠️ An event of the same type [${type}] already exists on this date. Overwrite?`;
+                        if (!confirm(confirmMsg)) return;
                         store.delete(sameTypeEvent.id);
                     }
                 }
@@ -623,14 +662,16 @@
                 if (type === 'OFF') {
                     const otherEvents = sameDayEvents.filter(ev => ev.schedule_type !== 'OFF');
                     if (otherEvents.length > 0) {
-                        if (confirm(`⚠️ 이 날짜에는 이미 근무 일정이 등록되어 있습니다.\nDay Off를 설정하면 기존 일정이 모두 삭제됩니다. 계속하시겠습니까?`)) {
+                        const offConfirm = currentLang === 'ko' ? `⚠️ 이 날짜에는 이미 근무 일정이 등록되어 있습니다.\nDay Off를 설정하면 기존 일정이 모두 삭제됩니다. 계속하시겠습니까?` : `⚠️ Work schedules are already registered on this date.\nSetting Day Off will delete existing schedules. Continue?`;
+                        if (confirm(offConfirm)) {
                             otherEvents.forEach(ev => store.delete(ev.id));
                         } else { return; }
                     }
                 } else {
                     const existingOff = sameDayEvents.find(ev => ev.schedule_type === 'OFF');
                     if (existingOff) {
-                        if (confirm(`⚠️ 이 날짜에는 [Day Off]가 설정되어 있습니다.\n새 일정을 추가하면 [Day Off]가 삭제됩니다. 계속하시겠습니까?`)) {
+                        const addConfirm = currentLang === 'ko' ? `⚠️ 이 날짜에는 [Day Off]가 설정되어 있습니다.\n새 일정을 추가하면 [Day Off]가 삭제됩니다. 계속하시겠습니까?` : `⚠️ [Day Off] is set for this date.\nAdding a new schedule will delete [Day Off]. Continue?`;
+                        if (confirm(addConfirm)) {
                             store.delete(existingOff.id);
                         } else { return; }
                     }
@@ -664,7 +705,7 @@
         function initCalendar() {
             calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
                 initialView: 'dayGridMonth',
-                locale: 'ko',
+                locale: currentLang, // 동적 언어 적용
                 headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
                 events: function(info, successCallback) {
                     const tx = db.transaction("schedules", "readonly");
@@ -687,11 +728,15 @@
         function renderMobileList() {
             return new Promise((resolve) => {
                 const container = document.getElementById('mobile-list-content');
+                const t = i18nData[currentLang];
                 const year = currentMonth.getFullYear();
                 const month = currentMonth.getMonth();
-                document.getElementById('mobile-month-display').innerText = `${year}년 ${month + 1}월`;
+                
+                // 년/월 표시 다국어화
+                const monthDisplay = currentLang === 'ko' ? `${year}년 ${month + 1}월` : new Intl.DateTimeFormat('en-US', {month: 'long', year: 'numeric'}).format(currentMonth);
+                document.getElementById('mobile-month-display').innerText = monthDisplay;
+                
                 container.innerHTML = '';
-
                 const todayStr = new Date().toISOString().split('T')[0];
                 const lastDay = new Date(year, month + 1, 0).getDate();
                 
@@ -706,7 +751,7 @@
 
                         let contentHtml = dayEvents.length > 0 
                             ? dayEvents.map(ev => `<span class="type-badge bg-${ev.schedule_type}">${ev.schedule_type}</span>`).join('')
-                            : `<div class="empty-cell">일정 없음</div>`;
+                            : `<div class="empty-cell" data-i18n="no_event">${t.no_event}</div>`;
 
                         const row = document.createElement('div');
                         row.className = `mobile-row ${dStr === todayStr ? 'today-highlight' : ''}`;
@@ -714,7 +759,7 @@
                         row.innerHTML = `
                             <div class="date-cell" onclick="showDailyListModal('${dStr}')">
                                 <span style="color:${color}; font-weight:bold; font-size:1.2rem;">${i}</span>
-                                <span style="font-size:0.8rem; color:#666;">${['일','월','화','수','목','금','토'][w]}</span>
+                                <span style="font-size:0.8rem; color:#666;">${t.days[w]}</span>
                             </div>
                             <div class="content-cell-wrapper" onclick="showDailyListModal('${dStr}')">${contentHtml}</div>
                         `;
@@ -729,6 +774,7 @@
             document.getElementById('list-modal-date').innerText = dateStr;
             const listContent = document.getElementById('daily-list-content');
             listContent.innerHTML = '';
+            const t = i18nData[currentLang];
 
             const tx = db.transaction("schedules", "readonly");
             tx.objectStore("schedules").getAll().onsuccess = (e) => {
@@ -742,7 +788,7 @@
                         listContent.appendChild(btn);
                     });
                 } else {
-                    listContent.innerHTML = '<div class="p-4 text-center text-muted">일정이 없습니다.</div>';
+                    listContent.innerHTML = `<div class="p-4 text-center text-muted" data-i18n="no_event">${t.no_event}</div>`;
                 }
                 document.getElementById('list-add-btn').onclick = () => {
                     bootstrap.Modal.getInstance(document.getElementById('dailyListModal')).hide();
@@ -753,7 +799,7 @@
         }
 
         function deleteSchedule() {
-            if (!confirm("정말 삭제하시겠습니까?")) return;
+            if (!confirm(i18nData[currentLang].msg_confirm_delete)) return;
             const id = Number(document.getElementById('edit-id').value);
             const tx = db.transaction("schedules", "readwrite");
             tx.objectStore("schedules").delete(id);
@@ -768,7 +814,7 @@
             document.getElementById('view-date').innerText = ev.schedule_date;
             document.getElementById('view-type').innerText = ev.schedule_type;
             document.getElementById('view-time').innerText = getTimeText(ev);
-            document.getElementById('view-note').innerText = ev.plan_note || "(메모 없음)";
+            document.getElementById('view-note').innerText = ev.plan_note || "";
             
             const searchModal = bootstrap.Modal.getInstance(document.getElementById('searchModal'));
             if(searchModal) searchModal.hide();
@@ -784,7 +830,7 @@
             tx.objectStore("schedules").get(currentId).onsuccess = (e) => {
                 const ev = e.target.result;
                 if(!ev) return;
-                document.getElementById('modalTitle').innerText = "스케줄 수정";
+                document.getElementById('modalTitle').innerText = i18nData[currentLang].sch_edit_title;
                 document.getElementById('edit-id').value = ev.id;
                 document.getElementById('date-input').value = ev.schedule_date;
                 document.getElementById('type-select').value = ev.schedule_type;
@@ -805,7 +851,7 @@
         }
 
         function openAddModal(date) {
-            document.getElementById('modalTitle').innerText = "새 스케줄 등록";
+            document.getElementById('modalTitle').innerText = i18nData[currentLang].sch_reg_title;
             document.getElementById('edit-id').value = '';
             document.getElementById('date-input').value = date;
             document.getElementById('plan-input').value = '';
@@ -820,16 +866,16 @@
         }
 
         function getTimeText(ev) {
-            if (ev.schedule_type === 'OFF') return "휴무";
+            const t = i18nData[currentLang];
+            if (ev.schedule_type === 'OFF') return t.type_off;
             if (ev.start_time && ev.end_time) return `${ev.start_time} ~ ${ev.end_time}`;
-            return "시간 정보 없음";
+            return currentLang === 'ko' ? "시간 정보 없음" : "No time info";
         }
 
         function getEventColor(type) {
             return {'M':'#4caf50','K':'#ff9800','A':'#2196f3','OFF':'#f44336'}[type] || '#607d8b';
         }
 
-        // 년 단위 이동 함수 추가
         function changeYear(val) {
             currentMonth.setFullYear(currentMonth.getFullYear() + val);
             if (calendar) {
@@ -869,10 +915,20 @@
         function renderTypeSelect() {
             const s = document.getElementById('type-select');
             s.innerHTML = '';
-            const types = [{v:'M', t:'M (오전)'}, {v:'A', t:'A (통상)'}, {v:'K', t:'K (오후)'}, {v:'OFF', t:'Day Off (휴무)'}, {v:'ETC', t:'기타 (직접입력)'}];
-            types.forEach(t => {
-                const opt = new Option(t.t, t.v);
-                if(userTimeSettings[t.v] && userTimeSettings[t.v].start) opt.text = `${t.v} | ${userTimeSettings[t.v].start}-${userTimeSettings[t.v].end}`;
+            const t = i18nData[currentLang];
+            // ko.js, en.js에서 정의한 다국어 타입 텍스트 사용
+            const types = [
+                {v:'M', t: t.type_m}, 
+                {v:'A', t: t.type_a}, 
+                {v:'K', t: t.type_k}, 
+                {v:'OFF', t: t.type_off}, 
+                {v:'ETC', t: t.type_etc}
+            ];
+            types.forEach(item => {
+                const opt = new Option(item.t, item.v);
+                if(userTimeSettings[item.v] && userTimeSettings[item.v].start) {
+                    opt.text = `${item.v} | ${userTimeSettings[item.v].start}-${userTimeSettings[item.v].end}`;
+                }
                 s.add(opt);
             });
         }
