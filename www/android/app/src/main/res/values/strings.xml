@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">업무 스케줄러 Pro</string>
+    <string name="title_activity_main">업무 스케줄러 Pro</string>
+    <string name="package_name">com.minjun.scheduler</string>
+    <string name="custom_url_scheme">com.minjun.scheduler</string>
+</resources>

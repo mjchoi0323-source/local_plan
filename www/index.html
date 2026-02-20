@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>업무 스케줄러 Pro (Batch Support)</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4a90e2">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <style>
+        :root { --primary: #4a90e2; }
+        body { font-family: 'Pretendard', sans-serif; background-color: #f0f2f5; margin: 0; padding: 0; }
+        
+        .sticky-header-wrapper {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background-color: #f0f2f5;
+            padding: 10px 10px 0 10px;
+        }
+
+        .user-header-table { width: 100%; max-width: 1000px; margin: 0 auto; border-collapse: collapse; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .user-header-table td { border: 1px solid #000; padding: 12px; font-size: 14px; }
+        
+        #calendar-container { max-width: 1000px; margin: 20px auto; background: white; padding: 15px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+        
+        .mobile-list-container { display: none; width: 100%; max-width: 1000px; margin: 0 auto; background: #fff; border: 1px solid #000; border-top: none; }
+        
+        .mobile-sticky-nav { background: #fff; border-left: 1px solid #000; border-right: 1px solid #000; width: 100%; max-width: 1000px; margin: 0 auto; }
+        .mobile-nav { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding: 10px 15px; font-weight: bold; background: #fdfdfd; align-items: center; }
+        .nav-buttons span { cursor: pointer; padding: 5px 10px; font-size: 1.3rem; }
+        .mobile-month-title { text-align: center; border-bottom: 1px solid #000; padding: 12px; font-size: 1.25rem; font-weight: bold; background: #fff; }
+        
+        .mobile-row { display: flex; border-bottom: 1px solid #000; min-height: 65px; scroll-margin-top: 195px; } 
+        .date-cell { width: 25%; padding: 10px; border-right: 1px solid #000; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: #fafafa; cursor: pointer; }
+        
+        .content-cell-wrapper { 
+            width: 75%; 
+            display: flex; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+            align-items: center; 
+            align-content: center; 
+            padding: 10px; 
+            cursor: pointer; 
+        }
+                
+        .type-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: white;
+            margin: 3px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            white-space: nowrap;
+        }
+        .bg-M { background-color: #4caf50; }
+        .bg-A { background-color: #2196f3; }
+        .bg-K { background-color: #ff9800; }
+        .bg-OFF { background-color: #f44336; }
+        .bg-ETC { background-color: #607d8b; }
+
+        .empty-cell { padding: 15px; color: #bbb; text-align: center; font-style: italic; width: 100%; }
+        .list-time-badge { font-size: 0.8rem; color: #666; background: #e9ecef; padding: 2px 6px; border-radius: 4px; margin-top: 4px; display: inline-block; }
+        
+        .today-highlight { background-color: #fff9db !important; }
+
+        /* --- 스와이프 삭제 관련 스타일 --- */
+        #search-results-list .list-group-item { 
+            padding: 0; 
+            overflow: hidden; 
+            position: relative; 
+            background-color: #dc3545; 
+            border: none;
+            border-bottom: 1px solid #eee;
+        }
+        .swipe-content {
+            background-color: #fff;
+            padding: 12px;
+            position: relative;
+            z-index: 2;
+            transition: transform 0.3s ease;
+            cursor: pointer;
+            border-left: 5px solid #4a90e2;
+        }
+        .swipe-delete-indicator {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-weight: bold;
+            z-index: 1;
+        }
+
+        @media (max-width: 768px) {
+            #calendar-container { display: none; }
+            .mobile-list-container { display: block; padding: 0 10px 20px 10px; background: transparent; border: none; }
+            .mobile-list-content-inner { background: #fff; border: 1px solid #000; }
+            .mobile-sticky-nav { display: block; }
+        }
+        
+        @media (min-width: 769px) {
+            .mobile-sticky-nav { display: none; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="sticky-header-wrapper">
+        <table class="user-header-table">
+            <tr>
+                <td style="width:30%;"><strong id="display-nickname">user</strong></td>
+                <td style="width:70%; text-align:center;">
+                    <a href="#" onclick="openBatchModal()" style="text-decoration:none; color:purple; font-weight:bold;" data-i18n="nav_batch">📅일괄등록</a> |
+                    <a href="#" onclick="openConfigModal()" style="text-decoration:none; color:green; font-weight:bold;" data-i18n="nav_config">⚙️설정</a> | 
+                    <a href="#" onclick="exportData()" style="text-decoration:none; color:blue;" data-i18n="nav_data">데이터</a>
+                </td>
+            </tr>
+        </table>
+
+        <div class="mobile-sticky-nav">
+            <div class="mobile-nav">
+                <div class="nav-buttons">
+                    <span onclick="changeYear(-1)">&lt;&lt;</span>
+                    <span onclick="changeMonth(-1)">&lt;</span>
+                    <span onclick="changeMonth(1)">&gt;</span>
+                    <span onclick="changeYear(1)">&gt;&gt;</span>
+                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="goToday()" data-i18n="btn_today">오늘</button>
+                </div>
+                <button class="btn btn-sm btn-primary" onclick="openSearchModal()" data-i18n="btn_search_nav">🔍 일정 검색</button>
+            </div>
+            <div id="mobile-month-display" class="mobile-month-title"></div>
+        </div>
+    </div>
+
+    <div class="mobile-list-container">
+        <div id="mobile-list-content" class="mobile-list-content-inner"></div>
+    </div>
+
+    <div id="calendar-container">
+        <div id="calendar"></div>
+    </div>
+
+    <div class="modal fade" id="batchModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" data-i18n="batch_title">기간 단위 일괄 등록</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="fw-bold" data-i18n="label_start_date">시작 날짜</label>
+                        <input type="date" id="batch-start-date" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="fw-bold" data-i18n="label_end_date">종료 날짜</label>
+                        <input type="date" id="batch-end-date" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="fw-bold" data-i18n="label_type">근무 타입</label>
+                        <select id="batch-type-select" class="form-select"></select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="fw-bold" data-i18n="label_note">공통 메모 (선택사항)</label>
+                        <input type="text" id="batch-plan-input" class="form-control" data-i18n-placeholder="batch_note_ph">
+                    </div>
+                    <div class="alert alert-warning small" data-i18n="batch_alert">
+                        * 동일한 타입의 일정은 유지됩니다.<br>
+                        * 다른 타입의 일정은 선택한 타입으로 덮어씌워집니다.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="btn_close">닫기</button>
+                    <button type="button" class="btn btn-purple text-white" style="background-color: purple;" onclick="executeBatchSave()" data-i18n="btn_batch_save">일괄 저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="configModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" data-i18n="config_title">근무 시간 및 정보 설정</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3 pb-3 border-bottom">
+                        <label class="fw-bold mb-2" data-i18n="label_lang">언어 설정 (Language)</label>
+                        <select id="cfg-lang" class="form-select" onchange="changeLanguage(this.value)">
+                            <option value="ko">한국어 (Korean)</option>
+                            <option value="en">English </option>
+                            <option value="ja">日本語 (Japanese)</option>
+                        </select>
+                    </div>
+                    <div class="mb-4 pb-3 border-bottom">
+                        <label class="fw-bold mb-2" data-i18n="label_nickname">사용자 닉네임</label>
+                        <input type="text" id="cfg-nickname" class="form-control" data-i18n-placeholder="cfg_nick_ph">
+                    </div>
+                    <p class="text-muted small" data-i18n="config_hint">* 변경된 시간은 새로 등록하는 일정부터 적용됩니다.</p>
+                    <div class="mb-3">
+                        <label class="fw-bold" data-i18n="type_m">M (오전)</label>
+                        <div class="d-flex gap-2 align-items-center">
+                            <input type="time" id="cfg-m-start" class="form-control"> ~ <input type="time" id="cfg-m-end" class="form-control">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="fw-bold" data-i18n="type_a">A (통상)</label>
+                        <div class="d-flex gap-2 align-items-center">
+                            <input type="time" id="cfg-a-start" class="form-control"> ~ <input type="time" id="cfg-a-end" class="form-control">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="fw-bold" data-i18n="type_k">K (오후)</label>  
+                        <div class="d-flex gap-2 align-items-center">
+                            <input type="time" id="cfg-k-start" class="form-control"> ~ <input type="time" id="cfg-k-end" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="btn_close">닫기</button>
+                    <button type="button" class="btn btn-success" onclick="saveConfig()" data-i18n="btn_save_config">설정 저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="searchModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" data-i18n="search_title">스케줄 검색</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group mb-3">
+                        <input type="text" id="search-input" class="form-control" data-i18n-placeholder="search_ph" onkeyup="if(event.keyCode==13) executeSearch()">
+                        <button class="btn btn-primary" onclick="executeSearch()" data-i18n="btn_search_exec">검색</button>
+                    </div>
+                    <div id="search-results-list" class="list-group" style="max-height: 400px; overflow-y: auto;">
+                        <p class="text-center text-muted py-4" data-i18n="search_intro">검색어를 입력해 주세요.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="dailyListModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title fw-bold"><span id="list-modal-date"></span> <span data-i18n="list_title">일정 목록</span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div id="daily-list-content" class="list-group list-group-flush"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary w-100" id="list-add-btn" data-i18n="btn_add_new">새 일정 추가</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="scheduleModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="modalTitle" data-i18n="sch_reg_title">스케줄 등록</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="edit-id">
+                    <div class="mb-3"><label class="form-label fw-bold" data-i18n="label_date">날짜</label><input type="date" id="date-input" class="form-control"></div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" data-i18n="label_type">타입 선택</label>
+                        <select id="type-select" class="form-select" onchange="toggleCustomTime()"></select>
+                    </div>
+                    <div id="custom-time-container" class="mb-3" style="display:none;">
+                        <label class="form-label fw-bold" data-i18n="label_time_setting">시간 설정</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <select id="start-hour" class="form-select"></select>:<select id="start-min" class="form-select"></select>
+                            ~
+                            <select id="end-hour" class="form-select"></select>:<select id="end-min" class="form-select"></select>
+                        </div>
+                    </div>
+                    <div class="mb-3"><label class="form-label fw-bold" data-i18n="label_note">계획 및 메모</label><input type="text" id="plan-input" class="form-control" data-i18n-placeholder="plan_note_ph"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="btn_close">닫기</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmAndSave()" data-i18n="btn_save">저장하기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="viewModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-secondary text-white">
+                    <h5 class="modal-title" data-i18n="detail_title">상세 일정 정보</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3"><label class="fw-bold" data-i18n="label_date">날짜</label><div id="view-date" class="p-2 bg-light"></div></div>
+                    <div class="mb-3"><label class="fw-bold" data-i18n="label_type">근무 타입</label><div id="view-type" class="p-2 bg-light"></div></div>
+                    <div class="mb-3"><label class="fw-bold" data-i18n="label_time">근무 시간</label><div id="view-time" class="p-2 bg-light"></div></div>
+                    <div class="mb-3"><label class="fw-bold" data-i18n="label_note">메모 내용</label><div id="view-note" class="p-2 bg-light" style="min-height:80px;"></div></div>
+                </div>
+                <div class="modal-footer justify-content-between">
+                    <button type="button" class="btn btn-danger" onclick="deleteSchedule()" data-i18n="btn_delete">삭제</button>
+                    <div>
+                        <button type="button" class="btn btn-warning" onclick="openEditModal()" data-i18n="btn_edit">수정</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="btn_close">닫기</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+<script src="locales/ko.js"></script>
+    <script src="locales/en.js"></script>
+        <script src="locales/ja.js"></script>
+    <script>
+        let db;
+        let calendar;
+        let currentMonth = new Date();
+        const i18nData = { ko, en, ja };
+        let currentLang = localStorage.getItem('appLang') || 'ko';
+
+        // 다국어 업데이트 함수
+        function updateI18n() {
+            const lang = i18nData[currentLang];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (lang[key]) el.innerHTML = lang[key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (lang[key]) el.placeholder = lang[key];
+            });
+            if (calendar) calendar.setOption('locale', currentLang);
+            renderTypeSelect();
+        }
+
+        // 언어 변경 처리
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('appLang', lang);
+            updateI18n();
+            refreshUI();
+        }
+
+        let userTimeSettings = JSON.parse(localStorage.getItem('workTimeConfig')) || {
+            'M': {start: '07:00', end: '15:30'},
+            'A': {start: '10:00', end: '18:30'},
+            'K': {start: '13:00', end: '21:30'},
+            'OFF': {start: '', end: ''},
+            'ETC': {start: '', end: ''}
+        };
+
+        const dbReq = indexedDB.open("WorkSchedulerDB", 1);
+        dbReq.onupgradeneeded = (e) => {
+            db = e.target.result;
+            if (!db.objectStoreNames.contains("schedules")) {
+                db.createObjectStore("schedules", { keyPath: "id", autoIncrement: true });
+            }
+        };
+        dbReq.onsuccess = (e) => {
+            db = e.target.result;
+            initApp();
+        };
+
+        function initApp() {
+            const savedNickname = localStorage.getItem('userNickname');
+            if (savedNickname) {
+                document.getElementById('display-nickname').innerText = savedNickname;
+            }
+            initTimeSelects();
+            renderTypeSelect();
+            initCalendar();
+            updateI18n(); // 초기 실행 시 다국어 적용
+            refreshUI();
+        }
+
+        // 일괄 등록 모달 열기
+        function openBatchModal() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('batch-start-date').value = today;
+            document.getElementById('batch-end-date').value = today;
+            document.getElementById('batch-plan-input').value = "";
+            
+            const bSelect = document.getElementById('batch-type-select');
+            bSelect.innerHTML = '';
+            const t = i18nData[currentLang];
+            // ko.js, en.js의 근무 타입 텍스트 참조
+            const types = [
+                {v:'M', t: t.type_m}, 
+                {v:'A', t: t.type_a}, 
+                {v:'K', t: t.type_k}, 
+                {v:'OFF', t: t.type_off}
+            ];
+            types.forEach(item => {
+                const opt = new Option(item.t, item.v);
+                bSelect.add(opt);
+            });
+
+            new bootstrap.Modal(document.getElementById('batchModal')).show();
+        }
+
+        // 일괄 등록 실행
+        async function executeBatchSave() {
+            const t = i18nData[currentLang];
+            const startStr = document.getElementById('batch-start-date').value;
+            const endStr = document.getElementById('batch-end-date').value;
+            const type = document.getElementById('batch-type-select').value;
+            const planNote = document.getElementById('batch-plan-input').value;
+
+            if (!startStr || !endStr) { 
+                alert(currentLang === 'ko' ? "날짜를 선택해주세요." : "Please select dates."); 
+                return; 
+            }
+            if (new Date(startStr) > new Date(endStr)) { 
+                alert(currentLang === 'ko' ? "시작일이 종료일보다 늦을 수 없습니다." : "Start date cannot be later than end date."); 
+                return; 
+            }
+
+            if (!confirm(t.msg_confirm_batch)) return;
+
+            const tx = db.transaction("schedules", "readwrite");
+            const store = tx.objectStore("schedules");
+
+            store.getAll().onsuccess = (e) => {
+                const allData = e.target.result;
+                let currentDate = new Date(startStr);
+                const endDate = new Date(endStr);
+
+                while (currentDate <= endDate) {
+                    const dStr = currentDate.toISOString().split('T')[0];
+                    const existingEvents = allData.filter(ev => ev.schedule_date === dStr);
+                    const hasSameType = existingEvents.some(ev => ev.schedule_type === type);
+
+                    if (!hasSameType) {
+                        existingEvents.forEach(ev => store.delete(ev.id));
+                        const data = {
+                            schedule_date: dStr,
+                            schedule_type: type,
+                            plan_note: planNote,
+                            start_time: userTimeSettings[type] ? userTimeSettings[type].start : "",
+                            end_time: userTimeSettings[type] ? userTimeSettings[type].end : ""
+                        };
+                        store.put(data);
+                    }
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+
+                tx.oncomplete = () => {
+                    alert(t.msg_batch_ok);
+                    bootstrap.Modal.getInstance(document.getElementById('batchModal')).hide();
+                    refreshUI(true);
+                };
+            };
+        }
+
+        function openConfigModal() {
+            document.getElementById('cfg-nickname').value = localStorage.getItem('userNickname') || 'user';
+            document.getElementById('cfg-lang').value = currentLang; // 언어 설정 반영
+            document.getElementById('cfg-m-start').value = userTimeSettings['M'].start;
+            document.getElementById('cfg-m-end').value = userTimeSettings['M'].end;
+            document.getElementById('cfg-a-start').value = userTimeSettings['A'].start;
+            document.getElementById('cfg-a-end').value = userTimeSettings['A'].end;
+            document.getElementById('cfg-k-start').value = userTimeSettings['K'].start;
+            document.getElementById('cfg-k-end').value = userTimeSettings['K'].end;
+            new bootstrap.Modal(document.getElementById('configModal')).show();
+        }
+
+        function saveConfig() {
+            const t = i18nData[currentLang];
+            const isValidTimeRange = (start, end) => {
+                if (!start || !end) return true;
+                return start <= end;
+            };
+
+            const mS = document.getElementById('cfg-m-start').value;
+            const mE = document.getElementById('cfg-m-end').value;
+            const aS = document.getElementById('cfg-a-start').value;
+            const aE = document.getElementById('cfg-a-end').value;
+            const kS = document.getElementById('cfg-k-start').value;
+            const kE = document.getElementById('cfg-k-end').value;
+
+            if (!isValidTimeRange(mS, mE) || !isValidTimeRange(aS, aE) || !isValidTimeRange(kS, kE)) { 
+                alert(currentLang === 'ko' ? "시작 시간이 종료 시간보다 늦을 수 없습니다." : "Start time cannot be later than end time."); 
+                return; 
+            }
+
+            const newNickname = document.getElementById('cfg-nickname').value.trim() || 'user';
+            localStorage.setItem('userNickname', newNickname);
+            document.getElementById('display-nickname').innerText = newNickname;
+
+            userTimeSettings['M'] = {start: mS, end: mE};
+            userTimeSettings['A'] = {start: aS, end: aE};
+            userTimeSettings['K'] = {start: kS, end: kE};
+            
+            localStorage.setItem('workTimeConfig', JSON.stringify(userTimeSettings));
+            renderTypeSelect(); 
+            bootstrap.Modal.getInstance(document.getElementById('configModal')).hide();
+            alert(t.msg_save_ok);
+        }
+
+        function openSearchModal() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('search-results-list').innerHTML = `<p class="text-center text-muted py-4" data-i18n="search_intro">${i18nData[currentLang].search_intro}</p>`;
+            new bootstrap.Modal(document.getElementById('searchModal')).show();
+            setTimeout(() => document.getElementById('search-input').focus(), 500);
+        }
+
+        function applySwipeToDelete(element, scheduleId, scheduleDate) {
+            let startX = 0;
+            let currentX = 0;
+            const threshold = -80;
+            const t = i18nData[currentLang];
+
+            element.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX;
+            }, {passive: true});
+
+            element.addEventListener('touchmove', (e) => {
+                currentX = e.touches[0].clientX - startX;
+                if (currentX < 0) {
+                    const transformX = Math.max(currentX, -120);
+                    element.style.transform = `translateX(${transformX}px)`;
+                }
+            }, {passive: true});
+
+            element.addEventListener('touchend', (e) => {
+                if (currentX < threshold) {
+                    if (confirm(t.msg_confirm_delete)) {
+                        const tx = db.transaction("schedules", "readwrite");
+                        tx.objectStore("schedules").delete(scheduleId);
+                        tx.oncomplete = () => {
+                            executeSearch();
+                            refreshUI(true);
+                        };
+                    } else {
+                        element.style.transform = `translateX(0px)`;
+                    }
+                } else {
+                    element.style.transform = `translateX(0px)`;
+                }
+                currentX = 0;
+            });
+        }
+
+        function executeSearch() {
+            const keyword = document.getElementById('search-input').value.trim().toLowerCase();
+            const t = i18nData[currentLang];
+            if (!keyword) return;
+
+            const tx = db.transaction("schedules", "readonly");
+            tx.objectStore("schedules").getAll().onsuccess = (e) => {
+                const results = e.target.result.filter(ev => 
+                    ev.schedule_type.toLowerCase().includes(keyword) || 
+                    (ev.plan_note && ev.plan_note.toLowerCase().includes(keyword)) ||
+                    ev.schedule_date.includes(keyword)
+                ).sort((a, b) => new Date(b.schedule_date) - new Date(a.schedule_date));
+
+                const container = document.getElementById('search-results-list');
+                container.innerHTML = '';
+
+                if (results.length > 0) {
+                    results.forEach(res => {
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'list-group-item mb-2';
+                        wrapper.innerHTML = `
+                            <div class="swipe-delete-indicator">${t.msg_swipe_delete}</div>
+                            <div class="swipe-content" id="swipe-${res.id}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>${res.schedule_date}</strong>
+                                    <span class="badge bg-${res.schedule_type}">${res.schedule_type}</span>
+                                </div>
+                                <div class="mt-1 text-truncate" style="font-size: 0.9rem;">${res.plan_note || ''}</div>
+                            </div>
+                        `;
+                        const swipeContent = wrapper.querySelector('.swipe-content');
+                        swipeContent.onclick = (e) => {
+                            const style = window.getComputedStyle(swipeContent);
+                            const matrix = new WebKitCSSMatrix(style.transform);
+                            if (matrix.m41 === 0) {
+                                bootstrap.Modal.getInstance(document.getElementById('searchModal')).hide();
+                                showDetail(res);
+                            }
+                        };
+                        applySwipeToDelete(swipeContent, res.id, res.schedule_date);
+                        container.appendChild(wrapper);
+                    });
+                } else {
+                    container.innerHTML = `<p class="text-center text-muted py-4">${t.search_no_result}</p>`;
+                }
+            };
+        }
+
+        // goToDate 함수 내 텍스트는 동적으로 생성되므로 생략하거나 필요 시 다국어화 가능
+
+        function timeToMinutes(timeStr) {
+            if (!timeStr || !timeStr.includes(':')) return -1;
+            const [h, m] = timeStr.split(':').map(Number);
+            return h * 60 + m;
+        }
+
+        async function confirmAndSave() {
+            const id = document.getElementById('edit-id').value;
+            const targetDate = document.getElementById('date-input').value;
+            const type = document.getElementById('type-select').value;
+            const planNote = document.getElementById('plan-input').value;
+
+            if (!targetDate) { 
+                alert(currentLang === 'ko' ? "날짜를 선택해 주세요." : "Please select a date."); 
+                return; 
+            }
+
+            let newStart = "";
+            let newEnd = "";
+            
+            if (type === 'ETC') {
+                newStart = document.getElementById('start-hour').value + ":" + document.getElementById('start-min').value;
+                newEnd = document.getElementById('end-hour').value + ":" + document.getElementById('end-min').value;
+                if (timeToMinutes(newStart) > timeToMinutes(newEnd)) {
+                    alert(currentLang === 'ko' ? "시작 시간이 종료 시간보다 늦을 수 없습니다." : "Start time cannot be later than end time.");
+                    return;
+                }
+            } else if (type !== 'OFF') {
+                newStart = userTimeSettings[type].start;
+                newEnd = userTimeSettings[type].end;
+            }
+
+            const tx = db.transaction("schedules", "readwrite");
+            const store = tx.objectStore("schedules");
+
+            store.getAll().onsuccess = (e) => {
+                const allData = e.target.result;
+                const sameDayEvents = allData.filter(ev => ev.schedule_date === targetDate && ev.id != id);
+                
+                if (type !== 'ETC') {
+                    const sameTypeEvent = sameDayEvents.find(ev => ev.schedule_type === type);
+                    if (sameTypeEvent) {
+                        const confirmMsg = currentLang === 'ko' ? `⚠️ 이미 같은 날짜에 동일한 타입 [${type}] 일정이 존재합니다. 덮어쓰시겠습니까?` : `⚠️ An event of the same type [${type}] already exists on this date. Overwrite?`;
+                        if (!confirm(confirmMsg)) return;
+                        store.delete(sameTypeEvent.id);
+                    }
+                }
+
+                if (type === 'OFF') {
+                    const otherEvents = sameDayEvents.filter(ev => ev.schedule_type !== 'OFF');
+                    if (otherEvents.length > 0) {
+                        const offConfirm = currentLang === 'ko' ? `⚠️ 이 날짜에는 이미 근무 일정이 등록되어 있습니다.\nDay Off를 설정하면 기존 일정이 모두 삭제됩니다. 계속하시겠습니까?` : `⚠️ Work schedules are already registered on this date.\nSetting Day Off will delete existing schedules. Continue?`;
+                        if (confirm(offConfirm)) {
+                            otherEvents.forEach(ev => store.delete(ev.id));
+                        } else { return; }
+                    }
+                } else {
+                    const existingOff = sameDayEvents.find(ev => ev.schedule_type === 'OFF');
+                    if (existingOff) {
+                        const addConfirm = currentLang === 'ko' ? `⚠️ 이 날짜에는 [Day Off]가 설정되어 있습니다.\n새 일정을 추가하면 [Day Off]가 삭제됩니다. 계속하시겠습니까?` : `⚠️ [Day Off] is set for this date.\nAdding a new schedule will delete [Day Off]. Continue?`;
+                        if (confirm(addConfirm)) {
+                            store.delete(existingOff.id);
+                        } else { return; }
+                    }
+                }
+
+                const data = {
+                    schedule_date: targetDate,
+                    schedule_type: type,
+                    plan_note: planNote,
+                    start_time: newStart, 
+                    end_time: newEnd      
+                };
+                if (id) data.id = Number(id);
+
+                store.put(data);
+                tx.oncomplete = () => {
+                    bootstrap.Modal.getInstance(document.getElementById('scheduleModal')).hide();
+                    refreshUI(true);
+                };
+            };
+        }
+
+        function refreshUI(keepScroll = false) {
+            const scrollPos = window.scrollY;
+            if (calendar) calendar.refetchEvents();
+            renderMobileList().then(() => {
+                if (keepScroll) { window.scrollTo(0, scrollPos); }
+            });
+        }
+
+        function initCalendar() {
+            calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+                initialView: 'dayGridMonth',
+                locale: currentLang, // 동적 언어 적용
+                headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
+                events: function(info, successCallback) {
+                    const tx = db.transaction("schedules", "readonly");
+                    tx.objectStore("schedules").getAll().onsuccess = (e) => {
+                        successCallback(e.target.result.map(d => ({
+                            id: d.id,
+                            title: `[${d.schedule_type}] ${d.plan_note}`,
+                            start: d.schedule_date,
+                            backgroundColor: getEventColor(d.schedule_type),
+                            extendedProps: d
+                        })));
+                    };
+                },
+                dateClick: (info) => showDailyListModal(info.dateStr),
+                eventClick: (info) => showDetail(info.event.extendedProps)
+            });
+            calendar.render();
+        }
+
+        function renderMobileList() {
+            return new Promise((resolve) => {
+                const container = document.getElementById('mobile-list-content');
+                const t = i18nData[currentLang];
+                const year = currentMonth.getFullYear();
+                const month = currentMonth.getMonth();
+                
+                // 년/월 표시 다국어화
+                const monthDisplay = currentLang === 'ko' ? `${year}년 ${month + 1}월` : new Intl.DateTimeFormat('en-US', {month: 'long', year: 'numeric'}).format(currentMonth);
+                document.getElementById('mobile-month-display').innerText = monthDisplay;
+                
+                container.innerHTML = '';
+                const todayStr = new Date().toISOString().split('T')[0];
+                const lastDay = new Date(year, month + 1, 0).getDate();
+                
+                const tx = db.transaction("schedules", "readonly");
+                tx.objectStore("schedules").getAll().onsuccess = (e) => {
+                    const data = e.target.result;
+                    for (let i = 1; i <= lastDay; i++) {
+                        const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                        const dayEvents = data.filter(ev => ev.schedule_date === dStr);
+                        const w = new Date(year, month, i).getDay();
+                        const color = (w === 0) ? 'red' : (w === 6 ? 'blue' : 'black');
+
+                        let contentHtml = dayEvents.length > 0 
+                            ? dayEvents.map(ev => `<span class="type-badge bg-${ev.schedule_type}">${ev.schedule_type}</span>`).join('')
+                            : `<div class="empty-cell" data-i18n="no_event">${t.no_event}</div>`;
+
+                        const row = document.createElement('div');
+                        row.className = `mobile-row ${dStr === todayStr ? 'today-highlight' : ''}`;
+                        row.id = `mobile-date-${dStr}`; 
+                        row.innerHTML = `
+                            <div class="date-cell" onclick="showDailyListModal('${dStr}')">
+                                <span style="color:${color}; font-weight:bold; font-size:1.2rem;">${i}</span>
+                                <span style="font-size:0.8rem; color:#666;">${t.days[w]}</span>
+                            </div>
+                            <div class="content-cell-wrapper" onclick="showDailyListModal('${dStr}')">${contentHtml}</div>
+                        `;
+                        container.appendChild(row);
+                    }
+                    resolve();
+                };
+            });
+        }
+
+        async function showDailyListModal(dateStr) {
+            document.getElementById('list-modal-date').innerText = dateStr;
+            const listContent = document.getElementById('daily-list-content');
+            listContent.innerHTML = '';
+            const t = i18nData[currentLang];
+
+            const tx = db.transaction("schedules", "readonly");
+            tx.objectStore("schedules").getAll().onsuccess = (e) => {
+                const dayEvents = e.target.result.filter(ev => ev.schedule_date === dateStr);
+                if (dayEvents.length > 0) {
+                    dayEvents.forEach(ev => {
+                        const btn = document.createElement('button');
+                        btn.className = 'list-group-item list-group-item-action py-3';
+                        btn.innerHTML = `<strong>[${ev.schedule_type}] ${ev.plan_note}</strong><br><small class="list-time-badge">${getTimeText(ev)}</small>`;
+                        btn.onclick = () => showDetail(ev);
+                        listContent.appendChild(btn);
+                    });
+                } else {
+                    listContent.innerHTML = `<div class="p-4 text-center text-muted" data-i18n="no_event">${t.no_event}</div>`;
+                }
+                document.getElementById('list-add-btn').onclick = () => {
+                    bootstrap.Modal.getInstance(document.getElementById('dailyListModal')).hide();
+                    openAddModal(dateStr);
+                };
+                new bootstrap.Modal(document.getElementById('dailyListModal')).show();
+            };
+        }
+
+        function deleteSchedule() {
+            if (!confirm(i18nData[currentLang].msg_confirm_delete)) return;
+            const id = Number(document.getElementById('edit-id').value);
+            const tx = db.transaction("schedules", "readwrite");
+            tx.objectStore("schedules").delete(id);
+            tx.oncomplete = () => {
+                bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide();
+                refreshUI(true);
+            };
+        }
+
+        function showDetail(ev) {
+            document.getElementById('edit-id').value = ev.id;
+            document.getElementById('view-date').innerText = ev.schedule_date;
+            document.getElementById('view-type').innerText = ev.schedule_type;
+            document.getElementById('view-time').innerText = getTimeText(ev);
+            document.getElementById('view-note').innerText = ev.plan_note || "";
+            
+            const searchModal = bootstrap.Modal.getInstance(document.getElementById('searchModal'));
+            if(searchModal) searchModal.hide();
+            const dailyModal = bootstrap.Modal.getInstance(document.getElementById('dailyListModal'));
+            if(dailyModal) dailyModal.hide();
+
+            new bootstrap.Modal(document.getElementById('viewModal')).show();
+        }
+
+        function openEditModal() {
+            const currentId = Number(document.getElementById('edit-id').value);
+            const tx = db.transaction("schedules", "readonly");
+            tx.objectStore("schedules").get(currentId).onsuccess = (e) => {
+                const ev = e.target.result;
+                if(!ev) return;
+                document.getElementById('modalTitle').innerText = i18nData[currentLang].sch_edit_title;
+                document.getElementById('edit-id').value = ev.id;
+                document.getElementById('date-input').value = ev.schedule_date;
+                document.getElementById('type-select').value = ev.schedule_type;
+                document.getElementById('plan-input').value = ev.plan_note;
+                
+                if(ev.schedule_type === 'ETC' && ev.start_time) {
+                    const [sh, sm] = ev.start_time.split(':');
+                    const [eh, em] = ev.end_time.split(':');
+                    document.getElementById('start-hour').value = sh;
+                    document.getElementById('start-min').value = sm;
+                    document.getElementById('end-hour').value = eh;
+                    document.getElementById('end-min').value = em;
+                }
+                toggleCustomTime();
+                bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide();
+                new bootstrap.Modal(document.getElementById('scheduleModal')).show();
+            };
+        }
+
+        function openAddModal(date) {
+            document.getElementById('modalTitle').innerText = i18nData[currentLang].sch_reg_title;
+            document.getElementById('edit-id').value = '';
+            document.getElementById('date-input').value = date;
+            document.getElementById('plan-input').value = '';
+            document.getElementById('type-select').value = 'M';
+            toggleCustomTime();
+            new bootstrap.Modal(document.getElementById('scheduleModal')).show();
+        }
+
+        function toggleCustomTime() {
+            document.getElementById('custom-time-container').style.display = 
+                (document.getElementById('type-select').value === 'ETC') ? 'block' : 'none';
+        }
+
+        function getTimeText(ev) {
+            const t = i18nData[currentLang];
+            if (ev.schedule_type === 'OFF') return t.type_off;
+            if (ev.start_time && ev.end_time) return `${ev.start_time} ~ ${ev.end_time}`;
+            return currentLang === 'ko' ? "시간 정보 없음" : "No time info";
+        }
+
+        function getEventColor(type) {
+            return {'M':'#4caf50','K':'#ff9800','A':'#2196f3','OFF':'#f44336'}[type] || '#607d8b';
+        }
+
+        function changeYear(val) {
+            currentMonth.setFullYear(currentMonth.getFullYear() + val);
+            if (calendar) {
+                calendar.gotoDate(currentMonth);
+            }
+            refreshUI();
+        }
+
+        function changeMonth(val) { 
+            currentMonth.setMonth(currentMonth.getMonth() + val); 
+            if (calendar) {
+                calendar.gotoDate(currentMonth);
+            }
+            refreshUI(); 
+        }
+        
+        function goToday() {
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            if (calendar) calendar.today();
+            currentMonth = new Date();
+            renderMobileList().then(() => {
+                setTimeout(() => {
+                    const element = document.getElementById(`mobile-date-${todayStr}`);
+                    if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+            });
+        }
+
+        function initTimeSelects() {
+            const h = document.querySelectorAll('#start-hour, #end-hour');
+            const m = document.querySelectorAll('#start-min, #end-min');
+            h.forEach(s => { for(let i=0; i<24; i++) s.add(new Option(String(i).padStart(2,'0'), String(i).padStart(2,'0'))); });
+            m.forEach(s => { for(let i=0; i<60; i+=5) s.add(new Option(String(i).padStart(2,'0'), String(i).padStart(2,'0'))); });
+        }
+
+        function renderTypeSelect() {
+            const s = document.getElementById('type-select');
+            s.innerHTML = '';
+            const t = i18nData[currentLang];
+            // ko.js, en.js에서 정의한 다국어 타입 텍스트 사용
+            const types = [
+                {v:'M', t: t.type_m}, 
+                {v:'A', t: t.type_a}, 
+                {v:'K', t: t.type_k}, 
+                {v:'OFF', t: t.type_off}, 
+                {v:'ETC', t: t.type_etc}
+            ];
+            types.forEach(item => {
+                const opt = new Option(item.t, item.v);
+                if(userTimeSettings[item.v] && userTimeSettings[item.v].start) {
+                    opt.text = `${item.v} | ${userTimeSettings[item.v].start}-${userTimeSettings[item.v].end}`;
+                }
+                s.add(opt);
+            });
+        }
+
+        function exportData() {
+            const tx = db.transaction("schedules", "readonly");
+            tx.objectStore("schedules").getAll().onsuccess = (e) => {
+                const blob = new Blob([JSON.stringify(e.target.result)], {type: "application/json"});
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `backup_${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+            };
+        }
+    </script>
+</body>
+</html>
